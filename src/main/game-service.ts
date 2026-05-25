@@ -596,7 +596,15 @@ export async function syncSteamAchievements(
           fetchSteamAchievementSchema(game.steamAppId!),
         ]);
 
+        const schemaHasAchievements = Object.keys(schema).length > 0;
+
         if (!achievements || achievements.length === 0) {
+          if (!schemaHasAchievements) {
+            const existing = await db.game.findUnique({ where: { id: game.id }, select: { manualStatus: true } });
+            if (!existing?.manualStatus) {
+              await db.game.update({ where: { id: game.id }, data: { status: 'NO_ACHIEVEMENTS' } });
+            }
+          }
           onProgress?.(index + 1, games.length, `${game.title} — no achievements`);
           skipped++;
           return;
@@ -636,10 +644,31 @@ export async function syncSteamAchievements(
           steamData.push({ ...ach, globalProgress: globalPct });
         }
 
+        const unlockedCount = achievements.filter((a: any) => a.achieved).length;
+        const totalCount = achievements.length;
+
         await db.game.update({
           where: { id: game.id },
-          data: { achievementsData: JSON.stringify(steamData) },
+          data: {
+            achievementsData: JSON.stringify(steamData),
+            totalAchievements: totalCount,
+            unlockedAchievements: unlockedCount,
+            completionPercentage: totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0,
+          },
         });
+
+        const existing = await db.game.findUnique({ where: { id: game.id }, select: { manualStatus: true } });
+        if (!existing?.manualStatus) {
+          let newStatus: string;
+          if (unlockedCount === 0) {
+            newStatus = 'BACKLOG';
+          } else if (unlockedCount >= totalCount) {
+            newStatus = 'COMPLETED';
+          } else {
+            newStatus = 'PLAYING';
+          }
+          await db.game.update({ where: { id: game.id }, data: { status: newStatus } });
+        }
 
         synced++;
       } catch (err) {

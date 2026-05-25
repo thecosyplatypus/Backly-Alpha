@@ -11,6 +11,7 @@ const statusFilters = [
   { value: '', label: 'All' },
   { value: GameStatus.PLAYING, label: 'Playing' },
   { value: GameStatus.BACKLOG, label: 'Backlog' },
+  { value: GameStatus.NO_ACHIEVEMENTS, label: 'No Achievements' },
   { value: GameStatus.STARTED, label: 'Started' },
   { value: GameStatus.COMPLETED, label: 'Completed' },
   { value: GameStatus.PAUSED, label: 'Paused' },
@@ -252,9 +253,10 @@ export default function Library() {
                 game.status === GameStatus.COMPLETED ? 'bg-purple-600/20 text-purple-400' :
                 game.status === GameStatus.PLAYING ? 'bg-green-600/20 text-green-400' :
                 game.status === GameStatus.BACKLOG ? 'bg-gray-600/20 text-gray-400' :
+                game.status === GameStatus.NO_ACHIEVEMENTS ? 'bg-gray-500/20 text-gray-400' :
                 'bg-blue-600/20 text-blue-400'
               }`}>
-                {game.status}
+                {game.status === GameStatus.NO_ACHIEVEMENTS ? 'No Achievements' : game.status}
               </span>
               {game.isFavourite && <span className="text-yellow-400 text-[10px] md:text-xs">★</span>}
               {game.userRating && <span className="text-[9px] md:text-xs text-gray-500">{game.userRating}/10</span>}

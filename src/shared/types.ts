@@ -6,6 +6,7 @@ export enum GameStatus {
   PAUSED = 'PAUSED',
   DROPPED = 'DROPPED',
   WISHLIST = 'WISHLIST',
+  NO_ACHIEVEMENTS = 'NO_ACHIEVEMENTS',
 }
 
 export interface GameData {
@@ -22,6 +23,7 @@ export interface GameData {
   steamAppId: string | null;
   steamData: string | null;
   status: GameStatus;
+  manualStatus: string | null;
   userRating: number | null;
   notes: string | null;
   tags: string | null;

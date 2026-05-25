@@ -22,6 +22,7 @@ model Game {
   steamData         String?
   importedFromSteam Boolean       @default(false)
   status            String        @default("BACKLOG")
+  manualStatus      String?
   userRating        Int?
   notes             String?
   tags              String?

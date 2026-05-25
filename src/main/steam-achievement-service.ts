@@ -165,11 +165,16 @@ export class SteamAchievementService {
     console.log(`[ACH] Syncing ${gameTitle} (${appId}) steamId=${steamId}`);
 
     await this.ensureGame(gameId, appId, gameTitle);
+    const db = getDatabase();
 
     const schema = await this.getSchema(appId);
 
     if (!schema?.availableGameStats?.achievements) {
       console.log(`[ACH] No achievements defined for ${gameTitle} (${appId})`);
+      const existing = await db.game.findUnique({ where: { id: gameId }, select: { manualStatus: true } });
+      if (!existing?.manualStatus) {
+        await db.game.update({ where: { id: gameId }, data: { status: 'NO_ACHIEVEMENTS' } });
+      }
       return { status: 'NO_ACHIEVEMENTS' };
     }
 
@@ -181,7 +186,6 @@ export class SteamAchievementService {
     }
 
     const globalPcts = await this.getGlobalPercentages(appId);
-    const db = getDatabase();
 
     const schemaAchs = schema.availableGameStats.achievements;
     const playerAchs: any[] = playerData.achievements;
@@ -262,6 +266,19 @@ export class SteamAchievementService {
         },
       });
     });
+
+    const gameAfter = await db.game.findUnique({ where: { id: gameId }, select: { manualStatus: true } });
+    if (!gameAfter?.manualStatus) {
+      let newStatus: string;
+      if (unlockedCount === 0) {
+        newStatus = 'BACKLOG';
+      } else if (unlockedCount >= schemaAchs.length) {
+        newStatus = 'COMPLETED';
+      } else {
+        newStatus = 'PLAYING';
+      }
+      await db.game.update({ where: { id: gameId }, data: { status: newStatus } });
+    }
 
     console.log(`[SUCCESS] ${appId} | ${unlockedCount}/${schemaAchs.length}`);
     return { status: 'SUCCESS', achievementData };

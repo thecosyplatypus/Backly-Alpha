@@ -16,6 +16,7 @@ const statusColors: Record<string, string> = {
   [GameStatus.PAUSED]: 'bg-yellow-600',
   [GameStatus.DROPPED]: 'bg-red-600',
   [GameStatus.WISHLIST]: 'bg-pink-600',
+  [GameStatus.NO_ACHIEVEMENTS]: 'bg-gray-500',
 };
 
 const statusLabels: Record<string, string> = {
@@ -26,6 +27,7 @@ const statusLabels: Record<string, string> = {
   [GameStatus.PAUSED]: 'Paused',
   [GameStatus.DROPPED]: 'Dropped',
   [GameStatus.WISHLIST]: 'Wishlist',
+  [GameStatus.NO_ACHIEVEMENTS]: 'No Achievements',
 };
 
 const FALLBACK_BASE = 'https://ui-avatars.com/api/?background=6366f1&color=fff&size=256';

@@ -307,7 +307,7 @@ export async function syncSteamLibrary(
             steamData: JSON.stringify(game),
           };
 
-          if (existing.hoursPlayed === 0 && playtimeHours > 0 && existing.status !== GameStatus.COMPLETED && existing.status !== GameStatus.DROPPED) {
+          if (existing.hoursPlayed === 0 && playtimeHours > 0 && existing.status !== GameStatus.COMPLETED && existing.status !== GameStatus.DROPPED && existing.status !== GameStatus.NO_ACHIEVEMENTS) {
             updateData.status = GameStatus.PLAYING;
           }
 

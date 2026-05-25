@@ -12,6 +12,7 @@ const statusStyles: Record<string, { active: string; inactive: string }> = {
   [GameStatus.PAUSED]: { active: 'bg-yellow-600/30 text-yellow-400 border border-yellow-500/30', inactive: '' },
   [GameStatus.DROPPED]: { active: 'bg-red-600/30 text-red-400 border border-red-500/30', inactive: '' },
   [GameStatus.WISHLIST]: { active: 'bg-pink-600/30 text-pink-400 border border-pink-500/30', inactive: '' },
+  [GameStatus.NO_ACHIEVEMENTS]: { active: 'bg-gray-500/30 text-gray-400 border border-gray-500/30', inactive: '' },
 };
 
 const statusOptions = [
@@ -22,6 +23,7 @@ const statusOptions = [
   { value: GameStatus.PAUSED, label: 'Paused' },
   { value: GameStatus.DROPPED, label: 'Dropped' },
   { value: GameStatus.WISHLIST, label: 'Wishlist' },
+  { value: GameStatus.NO_ACHIEVEMENTS, label: 'No Achievements' },
 ];
 
 function CompletionRingLarge({ pct, size = 100 }: { pct: number; size?: number }) {

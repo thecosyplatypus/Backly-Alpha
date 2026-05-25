@@ -123,7 +123,7 @@ export default function SpinWheel() {
   const renderPulseRef = useRef(false);
   const particlesRef = useRef<Particle[]>([]);
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
-  const [canvasDims, setCanvasDims] = useState({ w: 800, h: 600 });
+  const canvasDimsRef = useRef({ w: 800, h: 600 });
   const wheelCenterRef = useRef({ x: 400, y: 500 });
   const wheelRadiusRef = useRef(400);
   const segAngleRef = useRef((2 * Math.PI) / NUM_WHEEL_GAMES);
@@ -188,19 +188,33 @@ export default function SpinWheel() {
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
     }
-    const radius = Math.max(200, w * 0.55);
+    const arrowSpace = 55;
+    const bottomSpace = 90;
+    const availableH = h - arrowSpace - bottomSpace;
+    const maxDim = Math.min(w, availableH);
+    const radius = Math.max(150, maxDim * 0.44);
     const cx = w / 2;
-    const cy = h * 0.82;
+    const cy = arrowSpace + availableH / 2;
     wheelCenterRef.current = { x: cx, y: cy };
     wheelRadiusRef.current = radius;
     segAngleRef.current = (2 * Math.PI) / Math.max(1, wheelGames.length || NUM_WHEEL_GAMES);
-    setCanvasDims({ w, h });
+    canvasDimsRef.current = { w, h };
   }, [wheelGames.length]);
 
   useEffect(() => {
     updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
+    const container = containerRef.current;
+    if (!container) return;
+    let rafId: number;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => updateCanvasSize());
+    });
+    observer.observe(container);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(rafId);
+    };
   }, [updateCanvasSize]);
 
   const drawWheel = useCallback((rotation: number, ctx: CanvasRenderingContext2D, w: number, h: number) => {
@@ -214,10 +228,9 @@ export default function SpinWheel() {
     ctx.clearRect(0, 0, w, h);
 
     const gradient = ctx.createRadialGradient(cx, cy - radius * 0.3, 0, cx, cy, radius * 1.3);
-    gradient.addColorStop(0, '#141824');
-    gradient.addColorStop(0.4, '#0f111a');
-    gradient.addColorStop(0.7, '#0a0c12');
-    gradient.addColorStop(1, '#06080e');
+    gradient.addColorStop(0, '#121212');
+    gradient.addColorStop(0.5, '#0a0a0a');
+    gradient.addColorStop(1, '#000000');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, h);
 
@@ -397,33 +410,17 @@ export default function SpinWheel() {
       ctx.restore();
     }
 
-    const arrowGlow = arrowGlowRef.current;
-    if (arrowGlow > 0.01) {
-      ctx.save();
-      ctx.rotate(-Math.PI / 2);
-      ctx.beginPath();
-      ctx.arc(0, -radius * 0.15, radius * 0.12, 0, Math.PI * 2);
-      const glowAlpha = arrowGlow * 0.15;
-      const glowGrad = ctx.createRadialGradient(0, -radius * 0.15, 0, 0, -radius * 0.15, radius * 0.12);
-      glowGrad.addColorStop(0, `rgba(${GOLD_RGB},${glowAlpha})`);
-      glowGrad.addColorStop(1, `rgba(${GOLD_RGB},0)`);
-      ctx.fillStyle = glowGrad;
-      ctx.fill();
-      ctx.restore();
-    }
-
     ctx.restore();
 
     const lightGrad = ctx.createRadialGradient(cx, cy - radius * 0.5, 0, cx, cy, radius);
-    lightGrad.addColorStop(0, 'rgba(250,204,21,0.03)');
-    lightGrad.addColorStop(0.5, 'rgba(250,204,21,0.01)');
+    lightGrad.addColorStop(0, 'rgba(250,204,21,0.02)');
     lightGrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = lightGrad;
     ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
 
     const shadowGrad = ctx.createRadialGradient(cx, cy + radius * 0.1, radius * 0.2, cx, cy + radius * 0.1, radius * 1.1);
     shadowGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    shadowGrad.addColorStop(1, 'rgba(0,0,0,0.4)');
+    shadowGrad.addColorStop(1, 'rgba(0,0,0,0.3)');
     ctx.fillStyle = shadowGrad;
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -569,96 +566,17 @@ export default function SpinWheel() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
-    const w = canvasDims.w;
-    const h = canvasDims.h;
+    const { w, h } = canvasDimsRef.current;
 
     ctx.save();
     ctx.scale(dpr, dpr);
 
     drawWheel(rotation, ctx, w, h);
 
-    const cx = wheelCenterRef.current.x;
-    const cy = wheelCenterRef.current.y;
-    const radius = wheelRadiusRef.current;
-    const arrowAngle = arrowAngleRef.current;
-    const isSpinning = spinningRef.current;
-
-    const arrowOuterRadius = radius - Math.max(8, radius * 0.025);
-    const arrowInnerRadius = radius * 0.75;
-    const arrowWidth = Math.max(12, radius * 0.035);
-
-    ctx.save();
-    ctx.translate(cx, cy);
-
-    const arrowWorldAngle = -Math.PI / 2 + arrowAngle * (Math.PI / 180);
-
-    ctx.save();
-    ctx.rotate(arrowWorldAngle);
-    ctx.translate(0, -(arrowOuterRadius + arrowInnerRadius) / 2);
-
-    const arrowLen = arrowOuterRadius - arrowInnerRadius;
-    const aw = arrowWidth;
-    const ah = arrowLen;
-
-    ctx.beginPath();
-    ctx.moveTo(0, -ah / 2);
-    ctx.lineTo(-aw * 0.45, -ah * 0.3);
-    ctx.lineTo(-aw * 0.35, ah * 0.35);
-    ctx.lineTo(0, ah / 2);
-    ctx.lineTo(aw * 0.35, ah * 0.35);
-    ctx.lineTo(aw * 0.45, -ah * 0.3);
-    ctx.closePath();
-
-    const arrowGrad = ctx.createLinearGradient(0, -ah / 2, 0, ah / 2);
-    arrowGrad.addColorStop(0, '#ffd700');
-    arrowGrad.addColorStop(0.3, GOLD);
-    arrowGrad.addColorStop(0.7, '#eab308');
-    arrowGrad.addColorStop(1, '#a88400');
-    ctx.fillStyle = arrowGrad;
-    ctx.shadowColor = `rgba(${GOLD_RGB},${isSpinning ? 0.5 : 0.3})`;
-    ctx.shadowBlur = isSpinning ? 20 : 10;
-    ctx.fill();
-
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = `rgba(${GOLD_RGB},0.4)`;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(0, -ah / 2 + 2);
-    ctx.lineTo(-aw * 0.25, -ah * 0.2);
-    ctx.lineTo(-aw * 0.2, ah * 0.3);
-    ctx.lineTo(0, ah * 0.4);
-    ctx.lineTo(aw * 0.2, ah * 0.3);
-    ctx.lineTo(aw * 0.25, -ah * 0.2);
-    ctx.closePath();
-    const hiliteGrad = ctx.createLinearGradient(0, -ah / 2, 0, ah / 2);
-    hiliteGrad.addColorStop(0, 'rgba(255,255,255,0.4)');
-    hiliteGrad.addColorStop(0.5, 'rgba(255,255,255,0.1)');
-    hiliteGrad.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = hiliteGrad;
-    ctx.fill();
-
-    ctx.restore();
-
-    if (isSpinning) {
-      ctx.save();
-      ctx.rotate(arrowWorldAngle);
-      ctx.beginPath();
-      ctx.arc(0, -(arrowOuterRadius + 2), arrowWidth * 0.5, 0, Math.PI * 2);
-      const motionBlurGrad = ctx.createRadialGradient(0, -(arrowOuterRadius + 2), 0, 0, -(arrowOuterRadius + 2), arrowWidth * 0.5);
-      motionBlurGrad.addColorStop(0, `rgba(${GOLD_RGB},0.15)`);
-      motionBlurGrad.addColorStop(1, `rgba(${GOLD_RGB},0)`);
-      ctx.fillStyle = motionBlurGrad;
-      ctx.fill();
-      ctx.restore();
-    }
-
-    ctx.restore();
-
     animateParticles(ctx, w, h);
+
     ctx.restore();
-  }, [canvasDims, drawWheel, animateParticles]);
+  }, [drawWheel, animateParticles]);
 
   useEffect(() => {
     if (wheelGames.length === 0) return;
@@ -669,7 +587,7 @@ export default function SpinWheel() {
   }, [wheelGames, getCoverUrl, loadImage]);
 
   useEffect(() => {
-    if (canvasDims.w <= 0 || wheelGames.length === 0) return;
+    if (canvasDimsRef.current.w <= 0 || wheelGames.length === 0) return;
 
     const FRICTION = 0.985;
     const MIN_VELOCITY = 0.0008;
@@ -795,7 +713,7 @@ export default function SpinWheel() {
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [canvasDims, wheelGames, renderFrame, spawnParticles]);
+  }, [wheelGames, renderFrame, spawnParticles]);
 
   useEffect(() => {
     return () => {
@@ -855,7 +773,14 @@ export default function SpinWheel() {
   }
 
   return (
-    <div className="relative w-full h-screen overflow-hidden" ref={containerRef}>
+    <div className="relative w-full h-screen overflow-hidden bg-[#0a0a0a]" ref={containerRef}>
+      {/* Arrow at top middle */}
+      <div className="absolute left-1/2 top-0 -translate-x-1/2 z-20" style={{ filter: 'drop-shadow(0 -4px 12px rgba(255, 215, 0, 0.35))' }}>
+        <div className="relative w-[60px] h-[52px]" style={{ clipPath: 'polygon(50% 100%, 0 0, 100% 0)', background: 'linear-gradient(180deg, #ffd700 0%, #ffb300 100%)' }}>
+          <div className="absolute top-[6px] left-1/2 -translate-x-1/2 w-[12px] h-[12px] rounded-full bg-[#ffd700] shadow-[0_0_6px_rgba(255,215,0,0.5)]" />
+        </div>
+      </div>
+
       <canvas
         ref={canvasRef}
         className="absolute inset-0 block"
