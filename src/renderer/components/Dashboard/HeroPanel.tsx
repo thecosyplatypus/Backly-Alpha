@@ -1,0 +1,100 @@
+import React from 'react';
+
+interface Props {
+  game?: any;
+}
+
+const fallbackGame = {
+  title: 'Elden Ring',
+  description: 'Enter the Lands Between and become the Elden Lord in this epic fantasy action RPG.',
+  coverArt: null,
+  hoursPlayed: 142,
+  hltbMain: 55,
+  hltbMainExtra: 105,
+  hltbCompletionist: 135,
+  genre: 'Action RPG',
+  status: 'PLAYING',
+};
+
+export default function HeroPanel({ game }: Props) {
+  const g = game || fallbackGame;
+  const progress = g.hltbMainExtra > 0 ? Math.min(100, Math.round((g.hoursPlayed / g.hltbMainExtra) * 100)) : 0;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-surface-900 hero-panel group">
+      <div className="absolute inset-0 bg-gradient-to-br from-gold-500/10 via-surface-900 to-neon-purple/5" />
+      <div className="absolute inset-0 bg-gradient-to-t from-surface-950 via-surface-950/60 to-transparent" />
+
+      <div className="absolute top-1/4 left-1/4 w-48 md:w-64 h-48 md:h-64 bg-gold-500/10 rounded-full blur-[80px] md:blur-[100px] animate-breathing" />
+      <div className="absolute bottom-1/4 right-1/4 w-36 md:w-48 h-36 md:h-48 bg-neon-purple/10 rounded-full blur-[60px] md:blur-[80px] animate-float-delayed" />
+
+      <div className="relative z-10 p-4 md:p-8 flex flex-col justify-end min-h-[180px] md:min-h-[320px]">
+        <div className="max-w-2xl">
+          <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-4">
+            <span className="badge-gold text-[9px] md:text-[11px] uppercase tracking-widest">{g.genre || 'RPG'}</span>
+            <span className="badge bg-green-500/15 text-green-400 border border-green-500/20 text-[9px] md:text-[11px]">
+              ● {g.status || 'PLAYING'}
+            </span>
+          </div>
+
+          <h1 className="text-fluid-2xl md:text-4xl lg:text-5xl font-black text-white mb-2 md:mb-3 tracking-tight">
+            {g.title}
+          </h1>
+
+          <p className="text-[11px] md:text-sm text-gray-400 leading-relaxed mb-4 md:mb-6 line-clamp-2 hidden sm:block">
+            {g.description}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3 md:gap-6 mb-4 md:mb-6">
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <div className="w-1.5 md:w-2 h-1.5 md:h-2 rounded-full bg-gold-400 shadow-[0_0_6px_rgba(234,179,8,0.5)]" />
+              <span className="text-[11px] md:text-sm font-semibold text-white">{g.hoursPlayed}h</span>
+              <span className="text-[9px] md:text-xs text-gray-500">played</span>
+            </div>
+            <div className="text-gray-600 hidden md:block">|</div>
+            <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-gray-500 hidden sm:flex">
+              <span className="text-gold-400/80 font-medium">{g.hltbMainExtra}h</span>
+              <span className="hidden md:inline">main + extra</span>
+              <span className="md:hidden">M+E</span>
+            </div>
+            <div className="text-gray-600 hidden sm:block">|</div>
+            <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-gray-500 hidden sm:flex">
+              <span className="text-neon-purple/80 font-medium">{g.hltbCompletionist}h</span>
+              <span className="hidden md:inline">completionist</span>
+              <span className="md:hidden">100%</span>
+            </div>
+          </div>
+
+          <div className="w-full max-w-md mb-4 md:mb-6">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] md:text-xs text-gray-500">Story Progress</span>
+              <span className="text-[10px] md:text-xs font-medium text-gold-400">{progress}%</span>
+            </div>
+            <div className="w-full h-1 md:h-1.5 bg-surface-700/50 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-gold-500 to-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.3)] transition-all duration-1000 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 md:gap-3">
+            <button className="btn-primary flex items-center gap-1.5 md:gap-2 text-[11px] md:text-sm px-4 md:px-6 py-2 md:py-3 rounded-xl">
+              <svg className="w-3.5 md:w-4 h-3.5 md:h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <span className="hidden xs:inline">Continue Playing</span>
+              <span className="xs:hidden">Play</span>
+            </button>
+            <button className="btn-glass flex items-center gap-1.5 md:gap-2 text-[11px] md:text-sm px-4 md:px-6 py-2 md:py-3 rounded-xl border border-white/[0.06]">
+              <svg className="w-3.5 md:w-4 h-3.5 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Details
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

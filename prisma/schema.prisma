@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Game {
+  id                String        @id @default(uuid())
+  title             String
+  slug              String        @unique
+  coverArt          String?
+  banner            String?
+  platform          String?
+  genre             String?
+  developer         String?
+  publisher         String?
+  releaseDate       DateTime?
+  steamAppId        String?       @unique
+  steamData         String?
+  importedFromSteam Boolean       @default(false)
+  status            String        @default("BACKLOG")
+  userRating        Int?
+  notes             String?
+  tags              String?
+  isFavourite       Boolean       @default(false)
+  hoursPlayed       Float         @default(0)
+  completionDate    DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  hltbMain          Int?
+  hltbMainExtra     Int?
+  hltbCompletionist Int?
+  hltbData          String?
+  hltbLastSync      DateTime?
+  achievementsData       String?
+  totalAchievements      Int       @default(0)
+  unlockedAchievements   Int       @default(0)
+  completionPercentage   Float     @default(0)
+  lastPlayed        DateTime?
+  profileId         String
+  achievements      Achievement[]
+  profile           Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([status])
+  @@index([title])
+  @@index([genre])
+  @@index([steamAppId])
+}
+
+model Profile {
+  id            String    @id @default(uuid())
+  name          String    @default("Default")
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  steamId       String?   @unique
+  steamUsername String?
+  steamAvatar   String?
+  steamData     String?
+  steamLastSync DateTime?
+  settings      String?   @default("{}")
+  games         Game[]
+}
+
+model Activity {
+  id          String   @id @default(uuid())
+  type        String
+  gameId      String?
+  gameTitle   String?
+  icon        String   @default("default")
+  description String
+  metadata    String?
+  profileId   String
+  createdAt   DateTime @default(now())
+
+  @@index([profileId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+model SyncLog {
+  id        String   @id @default(uuid())
+  action    String
+  source    String
+  status    String
+  message   String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Achievement {
+  id             String    @id @default(uuid())
+  name           String
+  apiName        String?
+  description    String?
+  iconUrl        String?
+  unlocked       Boolean   @default(false)
+  unlockedAt     DateTime?
+  globalProgress Float?
+  gameId         String
+  game           Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, name])
+  @@index([gameId])
+  @@index([unlocked])
+}

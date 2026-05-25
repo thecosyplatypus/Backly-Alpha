@@ -1,0 +1,115 @@
+{
+  "name": "backly",
+  "version": "1.0.0",
+  "description": "Premium personal gaming backlog tracker",
+  "main": "dist/main/main/index.js",
+  "author": "Backly",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
+    "dev:main": "tsc -p tsconfig.main.json --watch",
+    "dev:renderer": "vite",
+    "build": "npm run build:main && npm run build:renderer",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "vite build",
+    "start": "electron .",
+    "dist": "npm run build && node scripts/package.js",
+    "postinstall": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "npx ts-node scripts/seed.ts",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run build && node scripts/package.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "axios": "^1.7.7",
+    "cheerio": "^1.0.0",
+    "dotenv": "^17.4.2",
+    "electron-log": "^5.4.4",
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.3.9",
+    "framer-motion": "^12.40.0",
+    "open": "^10.1.0",
+    "p-queue": "^9.3.0",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.0.0",
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "electron": "^42.2.0",
+    "electron-builder": "^26.8.1",
+    "eslint": "^9.15.0",
+    "postcss": "^8.4.49",
+    "prisma": "^5.22.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "recharts": "^2.13.3",
+    "tailwindcss": "^3.4.15",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  },
+  "build": {
+    "appId": "com.backly.app",
+    "productName": "Backly",
+    "directories": {
+      "output": "release"
+    },
+    "extraResources": [
+      {
+        "from": "prisma/backly.db",
+        "to": "database/backly.db"
+      }
+    ],
+    "files": [
+      "dist/**/*",
+      "resources/**/*",
+      "node_modules/**/*",
+      "prisma/schema.prisma",
+      "!node_modules/.cache"
+    ],
+    "asarUnpack": [
+      "node_modules/@prisma/client/**/*.node",
+      "node_modules/@prisma/client/runtime/*.wasm",
+      "node_modules/.prisma/client/**/*.node",
+      "node_modules/.prisma/client/*.prisma",
+      "node_modules/prisma/**/*.node"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "resources/icon.png"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "resources/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "resources/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "backly",
+      "repo": "backly"
+    }
+  }
+}
