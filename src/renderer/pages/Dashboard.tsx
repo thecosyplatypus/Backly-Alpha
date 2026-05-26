@@ -6,7 +6,6 @@ import WeeklyChart from '../components/Dashboard/WeeklyChart';
 import RecentGames from '../components/Dashboard/RecentGames';
 import PlaytimeRing from '../components/Dashboard/PlaytimeRing';
 import AchievementsPanel from '../components/Dashboard/AchievementsPanel';
-import Recommendations from '../components/Dashboard/Recommendations';
 import BacklogHealth from '../components/Dashboard/BacklogHealth';
 import CloseToCompletion from '../components/Dashboard/CloseToCompletion';
 import ShortSessionGames from '../components/Dashboard/ShortSessionGames';
@@ -115,7 +114,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Short Session + Recommendations */}
+        {/* Short Session Games */}
         <ShortSessionGames />
 
         {/* Backlog Insights */}
@@ -133,15 +132,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Achievements + Recommendations */}
-        <div className="dashboard-grid grid-cols-1 xl:grid-cols-4 gap-4 md:gap-5 resize-transition">
-          <div className="xl:col-span-1">
-            <AchievementsPanel />
-          </div>
-          <div className="xl:col-span-3">
-            <Recommendations />
-          </div>
-        </div>
+        {/* Recent Achievements */}
+        <AchievementsPanel />
 
         <div className="h-4" />
       </div>

@@ -26,29 +26,48 @@ const statusOptions = [
   { value: GameStatus.NO_ACHIEVEMENTS, label: 'No Achievements' },
 ];
 
-function CompletionRingLarge({ pct, size = 100 }: { pct: number; size?: number }) {
-  const r = (size - 8) / 2;
-  const c = r * 2 * Math.PI;
-  const offset = c - (pct / 100) * c;
+function AchievementCircle({ pct, unlocked, total }: { pct: number; unlocked: number; total: number }) {
   const isComplete = pct >= 100;
-  const strokeColor = isComplete ? '#22c55e' : '#6366f1';
+  const color = isComplete ? '#ffd700' : '#00ff88';
+  const glow = isComplete ? 'rgba(255,215,0,0.6)' : 'rgba(0,255,136,0.4)';
+  const r = 46;
+  const c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+
   return (
-    <svg width={size} height={size} className="transform -rotate-90 shrink-0">
-      <defs>
-        <linearGradient id="achRingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#6366f1" />
-          <stop offset="100%" stopColor="#818cf8" />
-        </linearGradient>
-      </defs>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6" />
-      <circle
-        cx={size / 2} cy={size / 2} r={r}
-        fill="none" stroke={isComplete ? strokeColor : 'url(#achRingGrad)'} strokeWidth="6" strokeLinecap="round"
-        strokeDasharray={c} strokeDashoffset={offset}
-        className="transition-all duration-1000"
-        style={{ filter: isComplete ? 'drop-shadow(0 0 8px rgba(34,197,94,0.5))' : 'drop-shadow(0 0 4px rgba(99,102,241,0.3))' }}
-      />
-    </svg>
+    <div
+      className="relative flex flex-col items-center justify-center rounded-full shrink-0"
+      style={{
+        width: 120,
+        height: 120,
+        background: 'linear-gradient(135deg, #0f0f0f, #000000)',
+        border: `4px solid ${color}`,
+        boxShadow: isComplete
+          ? '0 0 30px rgba(255,215,0,0.6), inset 0 0 20px rgba(255,215,0,0.2)'
+          : `0 0 20px ${glow}, inset 0 0 20px rgba(255,215,0,0.05)`,
+        color,
+      }}
+    >
+      <svg width="112" height="112" className="absolute inset-0 transform -rotate-90 pointer-events-none">
+        <circle cx="56" cy="56" r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="4" />
+        <circle
+          cx="56" cy="56" r={r}
+          fill="none" stroke={color} strokeWidth="4" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={offset}
+          className="transition-all duration-1000"
+          style={{ filter: `drop-shadow(0 0 6px ${glow})` }}
+        />
+      </svg>
+      {isComplete ? (
+        <span className="text-2xl relative z-10" style={{ textShadow: '0 0 20px rgba(255,215,0,0.8)' }}>⭐</span>
+      ) : (
+        <div className="relative z-10 text-center">
+          <p className="text-lg font-bold leading-none" style={{ textShadow: `0 0 10px ${glow}` }}>{pct}%</p>
+          <p className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: '#88ffcc' }}>{pct > 0 ? 'In Progress' : 'Locked'}</p>
+          <p className="text-[11px] font-bold mt-1">{unlocked}/{total}</p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -268,17 +287,7 @@ export default function GameDetailPage() {
                     ~{Math.round(timeRemaining)}h remaining
                   </p>
                 )}
-                <div className="flex items-center gap-1.5 md:gap-2">
-                  <button onClick={() => handleHoursChange(Math.max(0, game.hoursPlayed - 0.5))} className="btn-ghost text-[10px] md:text-xs p-0.5 md:p-1">−</button>
-                  <input
-                    type="number"
-                    value={game.hoursPlayed}
-                    onChange={(e) => handleHoursChange(parseFloat(e.target.value) || 0)}
-                    className="input w-14 md:w-20 text-center text-[10px] md:text-sm py-1 md:py-2"
-                    step="0.5"
-                  />
-                  <button onClick={() => handleHoursChange(game.hoursPlayed + 0.5)} className="btn-ghost text-[10px] md:text-xs p-0.5 md:p-1">+</button>
-                </div>
+
               </div>
             </div>
           </div>
@@ -482,31 +491,11 @@ export default function GameDetailPage() {
         <div className="space-y-3 md:space-y-4">
           {/* Achievement Ring */}
           {hasAchievements && (
-            <div className={`card ${isFullyComplete ? 'border-green-500/20' : ''}`}>
-              <div className="flex flex-col items-center py-2">
-                <div className="relative">
-                  <CompletionRingLarge pct={achPct} size={100} />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center">
-                      <p className={`text-lg md:text-xl font-bold ${isFullyComplete ? 'text-green-400' : 'text-white'}`}>
-                        {achPct}%
-                      </p>
-                      <p className="text-[8px] text-gray-500 -mt-0.5">done</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-center mt-2">
-                  <p className="text-[10px] md:text-xs text-gray-400">
-                    <span className={isFullyComplete ? 'text-green-400 font-semibold' : 'text-white font-semibold'}>{achUnlocked}</span>
-                    {' / '}{achTotal} achievements
-                  </p>
-                  {achLocked > 0 ? (
-                    <p className="text-[9px] text-gray-600 mt-0.5">{achLocked} remaining to unlock</p>
-                  ) : hasAchievements ? (
-                    <p className="text-[9px] text-green-500/70 mt-0.5">All achievements unlocked!</p>
-                  ) : null}
-                </div>
-              </div>
+            <div className={`card flex flex-col items-center py-4 ${isFullyComplete ? 'border-gold-500/20' : ''}`}>
+              <AchievementCircle pct={achPct} unlocked={achUnlocked} total={achTotal} />
+              {isFullyComplete && achLocked === 0 && (
+                <p className="text-[10px] text-center mt-2" style={{ color: '#00ff88' }}>All achievements unlocked!</p>
+              )}
             </div>
           )}
 

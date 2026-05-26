@@ -31,7 +31,7 @@ function createWindow(): void {
     minHeight: 700,
     title: 'Backly',
     icon: path.join(__dirname, '../../../resources/icon.png'),
-    backgroundColor: '#0f111a',
+    backgroundColor: '#0a0c12',
     show: false,
     frame: true,
     webPreferences: {

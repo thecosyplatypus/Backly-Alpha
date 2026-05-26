@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import AchievementCard from './AchievementCard';
 
 function TrophyIcon() {
@@ -64,13 +64,20 @@ export default function AchievementsPanel() {
   const unlockedCount = achievements.filter(a => a.unlocked).length;
   const totalCount = achievements.length;
 
+  const recentUnlocked = useMemo(() => {
+    return achievements
+      .filter(a => a.unlocked && a.unlockedAt)
+      .sort((a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime())
+      .slice(0, 5);
+  }, [achievements]);
+
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-[11px] md:text-sm font-semibold text-white">Steam Achievements</h3>
+          <h3 className="text-[11px] md:text-sm font-semibold text-white">Recent Achievements</h3>
           <p className="text-[9px] md:text-xs text-gray-500 mt-0.5">
-            {loading ? 'Loading...' : `${unlockedCount} / ${totalCount} unlocked`}
+            {loading ? 'Loading...' : `${unlockedCount} / ${totalCount} unlocked — last 5 shown`}
           </p>
         </div>
         <button
@@ -121,8 +128,25 @@ export default function AchievementsPanel() {
               {syncing ? 'Syncing...' : 'Sync from Steam'}
             </button>
           </div>
+        ) : recentUnlocked.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-surface-800/60 border border-white/[0.04] flex items-center justify-center mb-3">
+              <TrophyIcon />
+            </div>
+            <h4 className="text-xs font-semibold text-white mb-1">No recent achievements</h4>
+            <p className="text-[10px] text-gray-500 leading-relaxed max-w-[200px] mb-3">
+              {totalCount > 0 ? 'Unlock some achievements to see them here.' : 'Connect your Steam account and sync to see your achievements here.'}
+            </p>
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="btn-primary text-[9px] md:text-[11px] px-3 py-1.5"
+            >
+              {syncing ? 'Syncing...' : 'Sync from Steam'}
+            </button>
+          </div>
         ) : (
-          achievements.map((ach, i) => (
+          recentUnlocked.map((ach, i) => (
             <AchievementCard
               key={ach.id}
               title={ach.name}
