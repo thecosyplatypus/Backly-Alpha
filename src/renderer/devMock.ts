@@ -13,7 +13,6 @@ const mockDb = {
       status: 'PLAYING', userRating: 9, notes: null, tags: 'open-world,difficult',
       isFavourite: true, hoursPlayed: 142, completionDate: null,
       createdAt: '2024-01-15', updatedAt: '2024-12-01',
-      hltbMain: 55, hltbMainExtra: 105, hltbCompletionist: 135, hltbData: null, hltbLastSync: null,
       achievementsData: null, lastPlayed: '2024-12-05', profileId: '1',
     },
     {
@@ -23,7 +22,6 @@ const mockDb = {
       status: 'PLAYING', userRating: 10, notes: null, tags: 'cRPG,story-rich',
       isFavourite: true, hoursPlayed: 87, completionDate: null,
       createdAt: '2024-02-10', updatedAt: '2024-12-03',
-      hltbMain: 75, hltbMainExtra: 145, hltbCompletionist: 175, hltbData: null, hltbLastSync: null,
       achievementsData: null, lastPlayed: '2024-12-07', profileId: '1',
     },
     {
@@ -33,7 +31,6 @@ const mockDb = {
       status: 'COMPLETED', userRating: 9, notes: null, tags: 'puzzle,classic',
       isFavourite: true, hoursPlayed: 24, completionDate: '2024-11-20',
       createdAt: '2024-03-01', updatedAt: '2024-11-20',
-      hltbMain: 8, hltbMainExtra: 13, hltbCompletionist: 20, hltbData: null, hltbLastSync: null,
       achievementsData: null, lastPlayed: '2024-11-18', profileId: '1',
     },
     {
@@ -43,7 +40,6 @@ const mockDb = {
       status: 'PLAYING', userRating: 8, notes: null, tags: 'open-world,sci-fi',
       isFavourite: false, hoursPlayed: 65, completionDate: null,
       createdAt: '2024-04-05', updatedAt: '2024-11-28',
-      hltbMain: 25, hltbMainExtra: 55, hltbCompletionist: 105, hltbData: null, hltbLastSync: null,
       achievementsData: null, lastPlayed: '2024-11-30', profileId: '1',
     },
     {
@@ -53,7 +49,6 @@ const mockDb = {
       status: 'COMPLETED', userRating: 9, notes: null, tags: 'roguelike,mythology',
       isFavourite: true, hoursPlayed: 120, completionDate: '2024-08-15',
       createdAt: '2024-01-20', updatedAt: '2024-08-15',
-      hltbMain: 22, hltbMainExtra: 55, hltbCompletionist: 95, hltbData: null, hltbLastSync: null,
       achievementsData: null, lastPlayed: '2024-08-10', profileId: '1',
     },
     {
@@ -63,7 +58,6 @@ const mockDb = {
       status: 'PAUSED', userRating: 8, notes: null, tags: 'farming,relaxing',
       isFavourite: false, hoursPlayed: 55, completionDate: null,
       createdAt: '2024-03-10', updatedAt: '2024-10-01',
-      hltbMain: 52, hltbMainExtra: 87, hltbCompletionist: 150, hltbData: null, hltbLastSync: null,
       achievementsData: null, lastPlayed: '2024-09-28', profileId: '1',
     },
     {
@@ -73,7 +67,6 @@ const mockDb = {
       status: 'BACKLOG', userRating: null, notes: null, tags: 'open-world,story-rich',
       isFavourite: false, hoursPlayed: 0, completionDate: null,
       createdAt: '2024-05-01', updatedAt: '2024-05-01',
-      hltbMain: 51, hltbMainExtra: 103, hltbCompletionist: 172, hltbData: null, hltbLastSync: null,
       achievementsData: null, lastPlayed: null, profileId: '1',
     },
     {
@@ -83,7 +76,6 @@ const mockDb = {
       status: 'BACKLOG', userRating: null, notes: null, tags: 'metroidvania,difficult',
       isFavourite: false, hoursPlayed: 0, completionDate: null,
       createdAt: '2024-06-15', updatedAt: '2024-06-15',
-      hltbMain: 25, hltbMainExtra: 40, hltbCompletionist: 60, hltbData: null, hltbLastSync: null,
       achievementsData: null, lastPlayed: null, profileId: '1',
     },
     {
@@ -93,7 +85,6 @@ const mockDb = {
       status: 'WISHLIST', userRating: null, notes: null, tags: 'story-rich,detective',
       isFavourite: false, hoursPlayed: 0, completionDate: null,
       createdAt: '2024-07-20', updatedAt: '2024-07-20',
-      hltbMain: 22, hltbMainExtra: 30, hltbCompletionist: 45, hltbData: null, hltbLastSync: null,
       achievementsData: null, lastPlayed: null, profileId: '1',
     },
     {
@@ -103,7 +94,6 @@ const mockDb = {
       status: 'BACKLOG', userRating: null, notes: null, tags: 'open-world,western',
       isFavourite: true, hoursPlayed: 15, completionDate: null,
       createdAt: '2024-08-01', updatedAt: '2024-12-01',
-      hltbMain: 48, hltbMainExtra: 80, hltbCompletionist: 180, hltbData: null, hltbLastSync: null,
       achievementsData: null, lastPlayed: '2024-12-01', profileId: '1',
     },
   ],
@@ -168,7 +158,7 @@ const listeners = new Map<string, Set<(...args: any[]) => void>>();
       mostPlayedGenre: 'Action RPG',
       avgCompletionTime: 45,
       isSteamSynced: false,
-      totalBacklogEstimate: backlog.reduce((s, g) => s + (g.hltbMainExtra || 0), 0),
+      totalBacklogEstimate: 0,
       currentlyPlaying: playing.length,
       startedCount: games.filter((g) => g.status === 'STARTED').length,
       droppedCount: games.filter((g) => g.status === 'DROPPED').length,
@@ -207,10 +197,6 @@ const listeners = new Map<string, Set<(...args: any[]) => void>>();
   steamStatus: async () => { await delay(); return { ...mockDb.steamStatus }; },
   steamDisconnect: async () => { await delay(); mockDb.steamStatus.isConnected = false; },
 
-  // HLTB
-  hltbLookup: async (_title: string) => { await delay(); return null; },
-  hltbBatchSync: async () => { await delay(); return { synced: 0, failed: 0 }; },
-
   // Activities
   getActivities: async (params?: any) => {
     await delay(150);
@@ -240,6 +226,7 @@ const listeners = new Map<string, Set<(...args: any[]) => void>>();
   // Insights
   getBacklogInsights: async () => { await delay(); return []; },
   getRecommendations: async (_type?: string) => { await delay(); return mockDb.games.slice(0, 3).map((g) => ({ game: g, reason: 'Popular choice', priority: 1 })); },
+  getSmartTips: async () => { await delay(); return { quickWins: 3, almostThere: 2, hiddenGems: 5, cleanup: 12 }; },
 
   // Settings
   getSettings: async () => { await delay(); return { ...mockDb.settings }; },
@@ -268,11 +255,11 @@ const listeners = new Map<string, Set<(...args: any[]) => void>>();
   },
   getCloseToCompletion: async () => {
     await delay(100);
-    const games = mockDb.games.filter(g => g.status !== 'COMPLETED' && g.hoursPlayed > 0 && g.hltbMain);
+    const games = mockDb.games.filter(g => g.status !== 'COMPLETED' && g.hoursPlayed > 0);
     return games.map(g => ({
       game: g,
-      progress: Math.min(100, Math.round((g.hoursPlayed / g.hltbMain) * 100)),
-      estimatedRemaining: Math.round(g.hltbMain - g.hoursPlayed),
+      progress: Math.min(100, Math.round((g.hoursPlayed / Math.max(1, g.hoursPlayed + 1)) * 100)),
+      estimatedRemaining: 0,
     })).sort((a, b) => b.progress - a.progress).slice(0, 6);
   },
   getShortSessionGames: async () => {
@@ -281,11 +268,11 @@ const listeners = new Map<string, Set<(...args: any[]) => void>>();
     return [
       {
         id: 'under-5', title: 'Under 5 Hours', description: 'Perfect for tonight', icon: 'clock',
-        games: games.filter(g => g.hltbMain && g.hltbMain > 0 && g.hltbMain <= 5).slice(0, 6),
+        games: games.filter(g => g.hoursPlayed > 0 && g.hoursPlayed <= 5).slice(0, 6),
       },
       {
         id: 'weekend', title: 'Weekend RPGs', description: 'Dive into something deeper', icon: 'calendar',
-        games: games.filter(g => g.genre === 'RPG' && g.hltbMain && g.hltbMain > 10 && g.hltbMain <= 30).slice(0, 6),
+        games: games.filter(g => g.genre === 'RPG').slice(0, 6),
       },
       {
         id: 'relaxing', title: 'Relaxing Games', description: 'Wind down with something chill', icon: 'coffee',

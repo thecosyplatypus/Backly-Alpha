@@ -32,11 +32,6 @@ export interface GameData {
   completionDate: string | null;
   createdAt: string;
   updatedAt: string;
-  hltbMain: number | null;
-  hltbMainExtra: number | null;
-  hltbCompletionist: number | null;
-  hltbData: string | null;
-  hltbLastSync: string | null;
   achievementsData: string | null;
   lastPlayed: string | null;
   profileId: string;
@@ -73,17 +68,6 @@ export interface SteamGameData {
   imgLogoUrl: string;
   hasCommunityVisibleStats: boolean;
   achievements: any[];
-}
-
-export interface HLTBData {
-  gameId: number;
-  name: string;
-  mainStory: number;
-  mainExtra: number;
-  completionist: number;
-  allStyles: number;
-  url: string;
-  imageUrl: string;
 }
 
 export interface DashboardStats {

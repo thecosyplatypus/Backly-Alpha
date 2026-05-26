@@ -77,7 +77,6 @@ export default function GameDetailPage() {
   const [game, setGame] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hltbData, setHltbData] = useState<any>(null);
   const [achData, setAchData] = useState<any>(null);
   const [achLoading, setAchLoading] = useState(false);
   const { updateGame } = useGameStore();
@@ -91,9 +90,6 @@ export default function GameDetailPage() {
       console.log('GameDetailPage: getGameById result', g ? 'found' : 'null');
       setGame(g);
       setLoading(false);
-      if (g?.title) {
-        window.backly.hltbLookup(g.title).then(setHltbData).catch(() => {});
-      }
     }).catch((err) => {
       console.error('GameDetailPage: getGameById failed', err);
       setError(err?.message || String(err));
@@ -138,10 +134,6 @@ export default function GameDetailPage() {
     await updateGame(game.id, { hoursPlayed: hours });
     setGame({ ...game, hoursPlayed: hours });
   };
-
-  const estimateTime = hltbData?.mainStory || game?.hltbMain;
-  const timeRemaining = estimateTime ? Math.max(0, estimateTime - (game?.hoursPlayed || 0)) : null;
-  const hltbProgress = estimateTime ? Math.min(100, Math.round(((game?.hoursPlayed || 0) / estimateTime) * 100)) : 0;
 
   const achTotal = achData?.totalAchievements ?? 0;
   const achUnlocked = achData?.unlockedAchievements ?? 0;
@@ -256,40 +248,12 @@ export default function GameDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 resize-transition">
         {/* Left */}
         <div className="lg:col-span-2 space-y-3 md:space-y-4">
-          {/* HLTB Progress */}
+          {/* Playtime */}
           <div className="card">
-            <h2 className="text-[11px] md:text-sm font-semibold text-white mb-2 md:mb-3">Playtime Progress</h2>
-            <div className="flex items-center gap-3 md:gap-4">
-              <div className="relative shrink-0">
-                <svg width="60" height="60" className="md:w-20 md:h-20 transform -rotate-90">
-                  <circle cx="30" cy="30" r="24" stroke="rgba(255,255,255,0.05)" strokeWidth="5" fill="none" />
-                  <circle
-                    cx="30" cy="30" r="24"
-                    stroke="#6366f1"
-                    strokeWidth="5"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * 24}`}
-                    strokeDashoffset={`${2 * Math.PI * 24 * (1 - hltbProgress / 100)}`}
-                    className="transition-all duration-1000"
-                  />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-[11px] md:text-sm font-bold text-white">
-                  {hltbProgress}%
-                </span>
-              </div>
-              <div className="space-y-0.5 md:space-y-1">
-                <p className="text-[11px] md:text-sm text-gray-300">
-                  <span className="text-white font-semibold">{Math.round(game.hoursPlayed)}h</span> played
-                </p>
-                {timeRemaining !== null && (
-                  <p className="text-[10px] md:text-sm text-gray-500">
-                    ~{Math.round(timeRemaining)}h remaining
-                  </p>
-                )}
-
-              </div>
-            </div>
+            <h2 className="text-[11px] md:text-sm font-semibold text-white mb-2 md:mb-3">Playtime</h2>
+            <p className="text-[11px] md:text-sm text-gray-300">
+              <span className="text-white font-semibold">{Math.round(game.hoursPlayed)}h</span> played
+            </p>
           </div>
 
           {/* Achievements Section */}
@@ -445,32 +409,6 @@ export default function GameDetailPage() {
               </>
             )}
           </div>
-
-          {/* HLTB */}
-          {hltbData && (
-            <div className="card">
-              <h2 className="text-[11px] md:text-sm font-semibold text-white mb-2 md:mb-3">HowLongToBeat Estimates</h2>
-              <div className="grid grid-cols-3 gap-2 md:gap-4">
-                <div className="text-center p-2 md:p-3 bg-surface-800 rounded-lg">
-                  <p className="text-[9px] md:text-xs text-gray-500">Main Story</p>
-                  <p className="text-sm md:text-lg font-bold text-white mt-0.5 md:mt-1">{hltbData.mainStory || '—'}h</p>
-                  {game.hoursPlayed > 0 && hltbData.mainStory && (
-                    <p className="text-[8px] md:text-xs mt-0.5 md:mt-1 text-gray-500">
-                      {game.hoursPlayed > hltbData.mainStory ? 'You play slower' : 'On track'}
-                    </p>
-                  )}
-                </div>
-                <div className="text-center p-2 md:p-3 bg-surface-800 rounded-lg">
-                  <p className="text-[9px] md:text-xs text-gray-500">M+Extras</p>
-                  <p className="text-sm md:text-lg font-bold text-white mt-0.5 md:mt-1">{hltbData.mainExtra || '—'}h</p>
-                </div>
-                <div className="text-center p-2 md:p-3 bg-surface-800 rounded-lg">
-                  <p className="text-[9px] md:text-xs text-gray-500">Completionist</p>
-                  <p className="text-sm md:text-lg font-bold text-white mt-0.5 md:mt-1">{hltbData.completionist || '—'}h</p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Notes */}
           <div className="card">

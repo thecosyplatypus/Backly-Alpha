@@ -1,7 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import { getDatabase, initDatabase } from './database';
 import { steamAuth, syncSteamLibrary } from './steam-auth';
-import { lookupHLTB, batchSyncHLTB } from './hltb';
 import {
   getDashboardStats,
   getGameById,
@@ -11,6 +10,7 @@ import {
   deleteGame,
   getBacklogInsights,
   getRecommendations,
+  getSmartTips,
   searchGames,
   getBacklogHealth,
   getCloseToCompletion,
@@ -108,20 +108,16 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
     return { success: true };
   });
 
-  ipcMain.handle('hltb-lookup', async (_event, gameTitle: string) => {
-    return lookupHLTB(gameTitle);
-  });
-
-  ipcMain.handle('hltb-batch-sync', async () => {
-    return batchSyncHLTB();
-  });
-
   ipcMain.handle('get-backlog-insights', async () => {
     return getBacklogInsights();
   });
 
   ipcMain.handle('get-recommendations', async (_event, type: string) => {
     return getRecommendations(type);
+  });
+
+  ipcMain.handle('get-smart-tips', async () => {
+    return getSmartTips();
   });
 
   ipcMain.handle('get-settings', async () => {

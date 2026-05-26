@@ -331,14 +331,6 @@ export async function syncSteamLibrary(
       }
     }
 
-    onProgress?.(total, total, 'Matching with HowLongToBeat...');
-    try {
-      const { batchSyncHLTB } = require('./hltb');
-      await batchSyncHLTB();
-    } catch (hltbErr) {
-      console.error('HLTB batch sync failed:', hltbErr);
-    }
-
     await db.syncLog.create({
       data: {
         action: 'steam_sync',

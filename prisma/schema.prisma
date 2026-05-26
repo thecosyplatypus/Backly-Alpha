@@ -31,11 +31,6 @@ model Game {
   completionDate    DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
-  hltbMain          Int?
-  hltbMainExtra     Int?
-  hltbCompletionist Int?
-  hltbData          String?
-  hltbLastSync      DateTime?
   achievementsData       String?
   totalAchievements      Int       @default(0)
   unlockedAchievements   Int       @default(0)

@@ -108,14 +108,6 @@ export async function updateGame(id: string, data: any) {
     const newStatus = data.status;
 
     if (newStatus === GameStatus.COMPLETED && prevStatus !== GameStatus.COMPLETED) {
-      const isLongGame = game.hltbMain && game.hltbMain >= 30;
-      if (isLongGame) {
-        await createActivity('long_game_finished', {
-          gameId: game.id,
-          gameTitle: game.title,
-          metadata: { hours: Math.round(game.hoursPlayed) },
-        });
-      }
       await createActivity('game_completed', {
         gameId: game.id,
         gameTitle: game.title,
@@ -211,13 +203,10 @@ export async function getDashboardStats() {
   }
   const mostPlayedGenre = Object.entries(genreCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
-  const totalBacklogEstimate = backlogGames.reduce((sum, g) => sum + (g.hltbMain || 0), 0);
+  const totalBacklogEstimate = 0;
   const avgCompletionTime = completedGames.length > 0
     ? Math.round(completedGames.reduce((sum, g) => sum + (g.hoursPlayed || 0), 0) / completedGames.length)
     : 0;
-
-  const sum_hltb = (field: 'hltbMain' | 'hltbMainExtra' | 'hltbCompletionist') =>
-    backlogGames.reduce((sum, g) => sum + (g[field] || 0), 0);
 
   return {
     totalGames: allGames.length,
@@ -261,19 +250,6 @@ export async function getBacklogInsights() {
     insights.push({ type: 'abandoned', title: 'Games You Abandoned', description: 'You haven\'t touched these in over 6 months', games: abandoned });
   }
 
-  const almostFinished = games.filter(g =>
-    g.status !== GameStatus.COMPLETED && g.hoursPlayed > 0 && g.hltbMain &&
-    g.hoursPlayed >= g.hltbMain * 0.75
-  );
-  if (almostFinished.length > 0) {
-    insights.push({ type: 'almostFinished', title: 'Almost Finished', description: 'You\'re 75%+ through these games', games: almostFinished });
-  }
-
-  const shortest = [...games].filter(g => g.hltbMain && g.hltbMain > 0 && g.hltbMain <= 5);
-  if (shortest.length > 0) {
-    insights.push({ type: 'shortest', title: 'Shortest Games in Backlog', description: 'Under 5 hours to beat', games: shortest.slice(0, 5) });
-  }
-
   const untouched = games.filter(g =>
     g.status === GameStatus.BACKLOG && g.hoursPlayed === 0 &&
     g.createdAt && (now.getTime() - new Date(g.createdAt).getTime()) > 365 * 24 * 60 * 60 * 1000
@@ -282,12 +258,39 @@ export async function getBacklogInsights() {
     insights.push({ type: 'untouched', title: 'Games Untouched for Over a Year', description: 'Time to revisit these?', games: untouched });
   }
 
-  const closeToCompletion = games.filter(g => g.status !== GameStatus.COMPLETED && g.hoursPlayed > 0 && g.hltbMain && g.hltbMain > 0 && (g.hoursPlayed / g.hltbMain) >= 0.9);
-  if (closeToCompletion.length > 0) {
-    insights.push({ type: 'closeToCompletion', title: 'Close to Completion', description: '90%+ done — finish them!', games: closeToCompletion });
+  return insights;
+}
+
+const TIPS_CACHE = { data: null as any, timestamp: 0 };
+const CACHE_TTL = 5 * 60 * 1000;
+
+export async function getSmartTips() {
+  const db = getDatabase();
+  const profile = await db.profile.findFirst();
+  if (!profile) {
+    return { quickWins: 0, almostThere: 0, hiddenGems: 0, cleanup: 0 };
   }
 
-  return insights;
+  const now = Date.now();
+  if (TIPS_CACHE.data && now - TIPS_CACHE.timestamp < CACHE_TTL) {
+    return TIPS_CACHE.data;
+  }
+
+  const allGames = await db.game.findMany({ where: { profileId: profile.id } });
+  const nonCompleted = allGames.filter(g => g.status !== GameStatus.COMPLETED);
+
+  // Reset cache so concurrent calls don't double-count
+  TIPS_CACHE.timestamp = now;
+
+  const tips = {
+    quickWins: 0,
+    almostThere: nonCompleted.filter(g => g.totalAchievements > 0 && g.completionPercentage >= 90).length,
+    hiddenGems: nonCompleted.filter(g => (!g.hoursPlayed || g.hoursPlayed === 0) && g.userRating && g.userRating >= 7).length,
+    cleanup: nonCompleted.filter(g => (!g.hoursPlayed || g.hoursPlayed === 0) && g.status === GameStatus.BACKLOG).length,
+  };
+
+  TIPS_CACHE.data = tips;
+  return tips;
 }
 
 export async function getRecommendations(type?: string) {
@@ -302,16 +305,6 @@ export async function getRecommendations(type?: string) {
   const recommendations: any[] = [];
 
   switch (type) {
-    case 'short': {
-      const short = games.filter(g => g.hltbMain && g.hltbMain > 0 && g.hltbMain <= 10);
-      short.forEach(g => recommendations.push({ game: g, reason: 'Quick completion — under 10 hours', priority: 10 - (g.hltbMain || 0) }));
-      break;
-    }
-    case 'close': {
-      const close = games.filter(g => g.hoursPlayed > 0 && g.hltbMain != null && g.hltbMain > 0);
-      close.forEach(g => recommendations.push({ game: g, reason: `You're ${Math.round((g.hoursPlayed / g.hltbMain!) * 100)}% through`, priority: Math.round((g.hoursPlayed / g.hltbMain!) * 100) }));
-      break;
-    }
     case 'best': {
       const best = games.filter(g => g.userRating && g.userRating >= 7);
       best.forEach(g => recommendations.push({ game: g, reason: 'Highly rated — must play!', priority: g.userRating || 0 }));
@@ -324,15 +317,22 @@ export async function getRecommendations(type?: string) {
       }
       break;
     }
+    case 'hidden-gem': {
+      const gems = games.filter(g => (!g.hoursPlayed || g.hoursPlayed === 0) && g.userRating && g.userRating >= 7);
+      gems.forEach(g => recommendations.push({ game: g, reason: 'Hidden gem — highly rated but unplayed', priority: g.userRating || 0 }));
+      break;
+    }
     default: {
-      const short = games.filter(g => g.hltbMain && g.hltbMain > 0 && g.hltbMain <= 10);
-      short.forEach(g => recommendations.push({ game: g, reason: 'Quick completion — under 10 hours', priority: 10 - (g.hltbMain || 0) }));
-      const close = games.filter(g => g.hoursPlayed > 0 && g.hltbMain != null && g.hltbMain > 0 && (g.hoursPlayed / g.hltbMain) >= 0.5);
-      close.forEach(g => {
+      const short = games.filter(g => g.hoursPlayed > 0 && g.hoursPlayed <= 10);
+      short.forEach(g => recommendations.push({ game: g, reason: 'Quick completion — under 10 hours played', priority: 10 - (g.hoursPlayed || 0) }));
+      const achClose = games.filter(g => g.totalAchievements > 0 && g.completionPercentage >= 90);
+      achClose.forEach(g => {
         if (!recommendations.find(r => r.game.id === g.id)) {
-          recommendations.push({ game: g, reason: `You're ${Math.round((g.hoursPlayed / g.hltbMain!) * 100)}% through`, priority: Math.round((g.hoursPlayed / g.hltbMain!) * 100) });
+          recommendations.push({ game: g, reason: `${Math.round(g.completionPercentage)}% achievements unlocked`, priority: Math.round(g.completionPercentage) });
         }
       });
+      const quick = games.filter(g => g.hoursPlayed > 0 && g.hoursPlayed <= 5 && !recommendations.find(r => r.game.id === g.id));
+      quick.forEach(g => recommendations.push({ game: g, reason: 'Quick win — under 5 hours played', priority: 10 - (g.hoursPlayed || 0) }));
       break;
     }
   }
@@ -434,11 +434,11 @@ export async function getCloseToCompletion() {
   });
 
   return games
-    .filter(g => g.hltbMain && g.hltbMain > 0 && (g.hoursPlayed / g.hltbMain) >= 0.75)
+    .filter(g => g.totalAchievements > 0 && g.completionPercentage >= 75)
     .map(g => ({
       game: g,
-      progress: Math.min(100, Math.round((g.hoursPlayed / g.hltbMain!) * 100)),
-      estimatedRemaining: Math.round(g.hltbMain! - g.hoursPlayed),
+      progress: Math.min(100, Math.round(g.completionPercentage)),
+      estimatedRemaining: g.totalAchievements - g.unlockedAchievements,
     }))
     .sort((a, b) => b.progress - a.progress)
     .slice(0, 6);
@@ -462,21 +462,21 @@ export async function getShortSessionGames() {
       title: 'Under 5 Hours',
       description: 'Perfect for tonight',
       icon: 'clock',
-      games: games.filter(g => g.hltbMain && g.hltbMain > 0 && g.hltbMain <= 5).slice(0, 6),
+      games: games.filter(g => g.hoursPlayed > 0 && g.hoursPlayed <= 5).slice(0, 6),
     },
     {
       id: 'one-session',
       title: 'One-Session Wonders',
       description: 'Games you can finish in one sitting',
       icon: 'zap',
-      games: games.filter(g => g.hltbMain && g.hltbMain > 0 && g.hltbMain <= 3).slice(0, 6),
+      games: games.filter(g => g.hoursPlayed > 0 && g.hoursPlayed <= 3).slice(0, 6),
     },
     {
       id: 'weekend',
-      title: 'Weekend RPGs',
+      title: 'Weekend Picks',
       description: 'Dive into something deeper this weekend',
       icon: 'calendar',
-      games: games.filter(g => g.genre === 'RPG' && g.hltbMain && g.hltbMain > 10 && g.hltbMain <= 30).slice(0, 6),
+      games: games.filter(g => g.genre === 'RPG' && g.hoursPlayed > 0).slice(0, 6),
     },
     {
       id: 'relaxing',
@@ -485,7 +485,7 @@ export async function getShortSessionGames() {
       icon: 'coffee',
       games: games.filter(g => {
         const relaxed = ['Simulation', 'Puzzle', 'Adventure', 'Casual'];
-        return relaxed.includes(g.genre || '') && (!g.hltbMain || g.hltbMain <= 20);
+        return relaxed.includes(g.genre || '');
       }).slice(0, 6),
     },
   ];

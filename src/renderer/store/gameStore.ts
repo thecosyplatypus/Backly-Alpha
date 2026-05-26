@@ -8,6 +8,7 @@ interface GameStore {
   stats: any | null;
   insights: any[];
   recommendations: any[];
+  smartTips: { quickWins: number; almostThere: number; hiddenGems: number; cleanup: number } | null;
   loading: boolean;
   error: string | null;
 
@@ -15,6 +16,7 @@ interface GameStore {
   fetchStats: () => Promise<void>;
   fetchInsights: () => Promise<void>;
   fetchRecommendations: (type?: string) => Promise<void>;
+  fetchSmartTips: () => Promise<void>;
   selectGame: (game: any | null) => void;
   createGame: (data: any) => Promise<void>;
   updateGame: (id: string, data: any) => Promise<void>;
@@ -29,6 +31,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   stats: null,
   insights: [],
   recommendations: [],
+  smartTips: null,
   loading: false,
   error: null,
 
@@ -64,6 +67,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const recommendations = await window.backly.getRecommendations(type);
       set({ recommendations });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  fetchSmartTips: async () => {
+    try {
+      const smartTips = await window.backly.getSmartTips();
+      set({ smartTips });
     } catch (err: any) {
       set({ error: err.message });
     }

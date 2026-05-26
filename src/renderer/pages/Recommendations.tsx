@@ -5,7 +5,7 @@ import { useResponsive } from '../hooks/useResponsive';
 
 export default function Recommendations() {
   const navigate = useNavigate();
-  const { recommendations, fetchRecommendations } = useGameStore();
+  const { recommendations, fetchRecommendations, smartTips, fetchSmartTips } = useGameStore();
   const resp = useResponsive();
   const [activeTab, setActiveTab] = useState('all');
 
@@ -13,11 +13,17 @@ export default function Recommendations() {
     fetchRecommendations(activeTab === 'all' ? undefined : activeTab);
   }, [activeTab]);
 
+  useEffect(() => {
+    fetchSmartTips();
+  }, []);
+
   const tabs = [
     { value: 'all', label: 'All' },
     { value: 'short', label: 'Under 10h' },
+    { value: 'quick-win', label: 'Quick Wins' },
     { value: 'close', label: 'Almost Done' },
     { value: 'best', label: 'Best Rated' },
+    { value: 'hidden-gem', label: 'Hidden Gems' },
     { value: 'random', label: 'Surprise' },
   ];
 
@@ -87,9 +93,7 @@ export default function Recommendations() {
                   {rec.game.hoursPlayed > 0 && (
                     <span className="text-[9px] md:text-xs text-gray-500">{Math.round(rec.game.hoursPlayed)}h played</span>
                   )}
-                  {rec.game.hltbMain && (
-                    <span className="text-[9px] md:text-xs text-gray-500">~{rec.game.hltbMain}h to beat</span>
-                  )}
+
                 </div>
                 <button
                   onClick={() => navigate(`/game/${rec.game.id}`)}
@@ -108,13 +112,18 @@ export default function Recommendations() {
         <h2 className="text-[11px] md:text-sm font-semibold text-white mb-3 md:mb-4">Smart Tips</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 resize-transition">
           {[
-            { title: 'Quick Wins', desc: 'Games under 5h', icon: '⚡' },
-            { title: 'Almost There', desc: "90%+ complete", icon: '🎯' },
-            { title: 'Hidden Gems', desc: 'Highly rated, unplayed', icon: '💎' },
-            { title: 'Clean Up', desc: 'Untouched for a year', icon: '🧹' },
+            { title: 'Quick Wins', desc: 'Games under 5h', icon: '⚡', count: smartTips?.quickWins },
+            { title: 'Almost There', desc: '90%+ complete', icon: '🎯', count: smartTips?.almostThere },
+            { title: 'Hidden Gems', desc: 'Highly rated, unplayed', icon: '💎', count: smartTips?.hiddenGems },
+            { title: 'Clean Up', desc: 'Untouched backlog', icon: '🧹', count: smartTips?.cleanup },
           ].map((tip, i) => (
             <div key={i} className="bg-surface-800/50 rounded-lg p-2.5 md:p-3">
-              <span className="text-lg md:text-xl">{tip.icon}</span>
+              <div className="flex items-start justify-between">
+                <span className="text-lg md:text-xl">{tip.icon}</span>
+                {tip.count !== undefined && (
+                  <span className="text-[9px] md:text-xs font-bold text-gold-400">{tip.count}</span>
+                )}
+              </div>
               <h3 className="text-[11px] md:text-sm font-medium text-white mt-1.5 md:mt-2">{tip.title}</h3>
               <p className="text-[9px] md:text-xs text-gray-500 mt-0.5 md:mt-1">{tip.desc}</p>
             </div>

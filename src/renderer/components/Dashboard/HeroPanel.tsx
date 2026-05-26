@@ -9,16 +9,13 @@ const fallbackGame = {
   description: 'Enter the Lands Between and become the Elden Lord in this epic fantasy action RPG.',
   coverArt: null,
   hoursPlayed: 142,
-  hltbMain: 55,
-  hltbMainExtra: 105,
-  hltbCompletionist: 135,
   genre: 'Action RPG',
   status: 'PLAYING',
 };
 
 export default function HeroPanel({ game }: Props) {
   const g = game || fallbackGame;
-  const progress = g.hltbMainExtra > 0 ? Math.min(100, Math.round((g.hoursPlayed / g.hltbMainExtra) * 100)) : 0;
+  const progress = g.hoursPlayed > 0 ? Math.min(100, Math.round((g.hoursPlayed / Math.max(1, g.hoursPlayed + 20)) * 100)) : 0;
 
   return (
     <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-surface-900 hero-panel group">
@@ -52,22 +49,11 @@ export default function HeroPanel({ game }: Props) {
               <span className="text-[9px] md:text-xs text-gray-500">played</span>
             </div>
             <div className="text-gray-600 hidden md:block">|</div>
-            <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-gray-500 hidden sm:flex">
-              <span className="text-gold-400/80 font-medium">{g.hltbMainExtra}h</span>
-              <span className="hidden md:inline">main + extra</span>
-              <span className="md:hidden">M+E</span>
-            </div>
-            <div className="text-gray-600 hidden sm:block">|</div>
-            <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-gray-500 hidden sm:flex">
-              <span className="text-neon-purple/80 font-medium">{g.hltbCompletionist}h</span>
-              <span className="hidden md:inline">completionist</span>
-              <span className="md:hidden">100%</span>
-            </div>
           </div>
 
           <div className="w-full max-w-md mb-4 md:mb-6">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] md:text-xs text-gray-500">Story Progress</span>
+              <span className="text-[10px] md:text-xs text-gray-500">Progress</span>
               <span className="text-[10px] md:text-xs font-medium text-gold-400">{progress}%</span>
             </div>
             <div className="w-full h-1 md:h-1.5 bg-surface-700/50 rounded-full overflow-hidden">

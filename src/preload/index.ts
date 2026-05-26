@@ -15,11 +15,9 @@ const api = {
   steamStatus: () => ipcRenderer.invoke('steam-status'),
   steamDisconnect: () => ipcRenderer.invoke('steam-disconnect'),
 
-  hltbLookup: (title: string) => ipcRenderer.invoke('hltb-lookup', title),
-  hltbBatchSync: () => ipcRenderer.invoke('hltb-batch-sync'),
-
   getBacklogInsights: () => ipcRenderer.invoke('get-backlog-insights'),
   getRecommendations: (type?: string) => ipcRenderer.invoke('get-recommendations', type),
+  getSmartTips: () => ipcRenderer.invoke('get-smart-tips'),
 
   getSettings: () => ipcRenderer.invoke('get-settings'),
   updateSettings: (settings: any) => ipcRenderer.invoke('update-settings', settings),

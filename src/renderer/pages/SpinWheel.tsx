@@ -846,11 +846,6 @@ export default function SpinWheel() {
                 <span className="px-2 py-0.5 rounded-md bg-surface-800 border border-white/[0.04]">
                   {Math.round(winner.hoursPlayed)}h played
                 </span>
-                {winner.hltbMain && (
-                  <span className="px-2 py-0.5 rounded-md bg-surface-800 border border-white/[0.04]">
-                    ~{winner.hltbMain}h to beat
-                  </span>
-                )}
                 {winner.genre && (
                   <span className="px-2 py-0.5 rounded-md bg-surface-800 border border-white/[0.04]">
                     {winner.genre}

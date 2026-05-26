@@ -19,10 +19,9 @@ export interface BacklyAPI {
   steamSync: () => Promise<any>;
   steamStatus: () => Promise<any>;
   steamDisconnect: () => Promise<any>;
-  hltbLookup: (title: string) => Promise<any>;
-  hltbBatchSync: () => Promise<any>;
   getBacklogInsights: () => Promise<any[]>;
   getRecommendations: (type?: string) => Promise<any[]>;
+  getSmartTips: () => Promise<{ quickWins: number; almostThere: number; hiddenGems: number; cleanup: number }>;
   getSettings: () => Promise<any>;
   updateSettings: (settings: any) => Promise<any>;
   getProfiles: () => Promise<any[]>;
