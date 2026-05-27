@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @default("Guest")
+  email     String   @default("")
+  steamId   String   @default("")
+  avatarUrl String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userGames      UserGame[]
+  activities     Activity[]
+  recommendations Recommendation[]
+  wheelHistories WheelHistory[]
+  sessions       Session[]
+}
+
+model Game {
+  id              Int      @id @default(autoincrement())
+  name            String
+  slug            String   @default("")
+  appid           String   @default("")
+  genre           String   @default("")
+  genreIds        String   @default("")
+  platform        String   @default("")
+  publishedAt     String   @default("")
+  image           String   @default("")
+  backgroundImage String   @default("")
+  developer       String   @default("")
+  publisher       String   @default("")
+  platforms       String   @default("")
+  score           String   @default("")
+  rating          String   @default("")
+  ratingCount     String   @default("")
+  shortDescription String  @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userGames UserGame[]
+}
+
+model UserGame {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  gameId           Int
+  playtimeForever  Int      @default(0)
+  playtime2Weeks   Int      @default(0)
+  playtimeWindows  Int      @default(0)
+  playtimeMac      Int      @default(0)
+  playtimeLinux    Int      @default(0)
+  isInstalled      Int      @default(0)
+  lastPlayed       DateTime?
+  achievementCount Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id])
+  game         Game         @relation(fields: [gameId], references: [id])
+  achievements Achievement[]
+
+  @@unique([userId, gameId])
+}
+
+model Achievement {
+  id          Int      @id @default(autoincrement())
+  userGameId  Int
+  apiName     String   @default("")
+  displayName String   @default("")
+  description String   @default("")
+  icon        String   @default("")
+  iconGray    String   @default("")
+  unlockDate  DateTime?
+  percent     Int      @default(0)
+  hidden      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userGame UserGame @relation(fields: [userGameId], references: [id])
+}
+
+model Activity {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  eventType   String   @default("")
+  gameId      String   @default("")
+  gameName    String   @default("")
+  description String   @default("")
+  icon        String   @default("")
+  metadata    String   @default("")
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Recommendation {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  gameId    String   @default("")
+  reason    String   @default("")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model WheelHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  gameIds   String   @default("")
+  reason    String   @default("")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UserSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Session {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  gameId          String    @default("")
+  playtimeSeconds Int       @default(0)
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+}

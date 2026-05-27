@@ -1,0 +1,89 @@
+{
+  "name": "backly-alpha",
+  "version": "1.0.0-alpha",
+  "description": "Backly - Premium Gaming Backlog Application",
+  "author": "Backly Team",
+  "license": "MIT",
+  "main": "dist-electron/electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:renderer\" \"wait-on http://localhost:3000 && electron .\"",
+    "dev:renderer": "vite",
+    "build": "npm run build:renderer && npm run build:electron",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "postinstall": "prisma generate",
+    "package": "npm run build && electron-builder --win --x64 --publish never",
+    "package:portable": "npm run build && electron-builder --win --x64 --config.win.target=portable --publish never",
+    "clean": "if (Test-Path dist) { Remove-Item -Recurse -Force dist } if (Test-Path release) { Remove-Item -Recurse -Force release }"
+  },
+  "build": {
+    "appId": "com.backly.app",
+    "productName": "Backly",
+    "copyright": "Backly Team",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*.js",
+      "public/**/*",
+      "prisma/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "prisma",
+        "to": "prisma",
+        "filter": ["**/*", "!schema.prisma"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "public/icon.ico",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Backly"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-Portable-${arch}.${ext}"
+    }
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "electron": "^33.4.0",
+    "electron-builder": "^25.1.8",
+    "postcss": "^8.4.49",
+    "prisma": "^5.22.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11",
+    "vite-plugin-electron": "^0.28.8",
+    "wait-on": "^8.0.3"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  }
+}
