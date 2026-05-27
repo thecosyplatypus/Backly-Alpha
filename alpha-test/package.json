@@ -15,7 +15,7 @@
     "db:push": "prisma db push",
     "postinstall": "prisma generate",
     "package": "npm run build && electron-builder --win --x64 --publish never",
-    "package:portable": "npm run build && electron-builder --win --x64 --config.win.target=portable --publish never",
+    "package:portable": "npm run build && npx @electron/packager . Backly --platform=win32 --arch=x64 --out=release --electron-version=33.4.11 --prune=true --overwrite",
     "clean": "if (Test-Path dist) { Remove-Item -Recurse -Force dist } if (Test-Path release) { Remove-Item -Recurse -Force release }"
   },
   "build": {
@@ -35,18 +35,25 @@
       {
         "from": "prisma",
         "to": "prisma",
-        "filter": ["**/*", "!schema.prisma"]
+        "filter": [
+          "**/*",
+          "!schema.prisma"
+        ]
       }
     ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "public/icon.ico",
@@ -65,9 +72,12 @@
     }
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0"
+    "@prisma/client": "^5.22.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@electron/packager": "^20.0.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
