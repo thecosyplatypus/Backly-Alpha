@@ -14,12 +14,10 @@ import InsightCard from '../components/Dashboard/InsightCard';
 import SteamSyncCard from '../components/ui/SteamSyncCard';
 
 export default function Dashboard() {
-  const { stats, fetchStats, games, fetchGames, insights, fetchInsights } = useGameStore();
+  const { stats, games, fetchGames, insights } = useGameStore();
 
   useEffect(() => {
-    fetchStats();
     fetchGames({ limit: 20, sort: 'recent' });
-    fetchInsights();
   }, []);
 
   const recentlyPlayed = useMemo(

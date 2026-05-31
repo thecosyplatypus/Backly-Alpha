@@ -57,7 +57,7 @@ export default function Layout({ children }: Props) {
       </main>
 
       {resp.showPanelRight && (
-        <div className="hidden xl:block resize-transition relative z-10">
+        <div className="resize-transition relative z-10">
           <ProfilePanel />
         </div>
       )}

@@ -11,6 +11,10 @@ import { setupUpdater } from './updater';
 import { initDatabase, getDatabase } from './database';
 import { syncSteamLibrary } from './steam-auth';
 
+if (process.platform === 'win32') {
+  app.commandLine.appendSwitch('disable-disk-cache');
+}
+
 const steamKey = process.env.STEAM_API_KEY;
 if (!steamKey) {
   console.warn('WARNING: STEAM_API_KEY is not set in .env');

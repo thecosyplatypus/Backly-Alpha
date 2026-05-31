@@ -9,9 +9,13 @@ export default function SplashScreen({ onFinish }: Props) {
   const [loadingText, setLoadingText] = useState('');
 
   const loadingMessages = [
+    'Connecting to database...',
     'Loading your library...',
     'Preparing dashboard...',
     'Syncing achievements...',
+    'Curating your backlog...',
+    'Optimizing performance...',
+    'Applying final touches...',
     'Ready to play!',
   ];
 
@@ -20,21 +24,29 @@ export default function SplashScreen({ onFinish }: Props) {
       setPhase('visible');
     });
 
-    const textTimer = setTimeout(() => setLoadingText(loadingMessages[0]), 100);
-    const textTimer2 = setTimeout(() => setLoadingText(loadingMessages[1]), 600);
-    const textTimer3 = setTimeout(() => setLoadingText(loadingMessages[2]), 1200);
-    const textTimer4 = setTimeout(() => setLoadingText(loadingMessages[3]), 1800);
+    const textTimer = setTimeout(() => setLoadingText(loadingMessages[0]), 200);
+    const textTimer2 = setTimeout(() => setLoadingText(loadingMessages[1]), 1500);
+    const textTimer3 = setTimeout(() => setLoadingText(loadingMessages[2]), 3000);
+    const textTimer4 = setTimeout(() => setLoadingText(loadingMessages[3]), 4700);
+    const textTimer5 = setTimeout(() => setLoadingText(loadingMessages[4]), 6200);
+    const textTimer6 = setTimeout(() => setLoadingText(loadingMessages[5]), 7600);
+    const textTimer7 = setTimeout(() => setLoadingText(loadingMessages[6]), 8800);
+    const textTimer8 = setTimeout(() => setLoadingText(loadingMessages[7]), 9400);
 
     const exitTimer = setTimeout(() => {
       setPhase('exit');
       setTimeout(onFinish, 800);
-    }, 2400);
+    }, 10200);
 
     return () => {
       clearTimeout(textTimer);
       clearTimeout(textTimer2);
       clearTimeout(textTimer3);
       clearTimeout(textTimer4);
+      clearTimeout(textTimer5);
+      clearTimeout(textTimer6);
+      clearTimeout(textTimer7);
+      clearTimeout(textTimer8);
       clearTimeout(exitTimer);
     };
   }, []);

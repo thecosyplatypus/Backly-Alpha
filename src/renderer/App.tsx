@@ -1,17 +1,36 @@
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { Suspense, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
-import Dashboard from './pages/Dashboard';
-import Library from './pages/Library';
-import GameDetailPage from './pages/GameDetailPage';
-import Settings from './pages/Settings';
-import Recommendations from './pages/Recommendations';
-import SpinWheel from './pages/SpinWheel';
-import Wrapped from './pages/Wrapped';
 import { useGameStore } from './store/gameStore';
 import { useSettingsStore } from './store/settingsStore';
 import { useKeyboardShortcuts, ShortcutHint } from './hooks/useKeyboardShortcuts';
 import { useController } from './hooks/useController';
+
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Library = React.lazy(() => import('./pages/Library'));
+const GameDetailPage = React.lazy(() => import('./pages/GameDetailPage'));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const Recommendations = React.lazy(() => import('./pages/Recommendations'));
+const SpinWheel = React.lazy(() => import('./pages/SpinWheel'));
+const Wrapped = React.lazy(() => import('./pages/Wrapped'));
+
+const PAGES = [
+  { path: '/', element: <Dashboard /> },
+  { path: '/library', element: <Library /> },
+  { path: '/game/:id', element: <GameDetailPage /> },
+  { path: '/recommendations', element: <Recommendations /> },
+  { path: '/spin-wheel', element: <SpinWheel /> },
+  { path: '/wrapped', element: <Wrapped /> },
+  { path: '/settings', element: <Settings /> },
+];
+
+function PageFallback() {
+  return (
+    <div className="content-area flex items-center justify-center min-h-[400px]">
+      <div className="w-8 h-8 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 export default function App() {
   const navigate = useNavigate();
@@ -23,9 +42,12 @@ export default function App() {
 
   useEffect(() => {
     fetchStats();
-    fetchInsights();
     loadSettings();
-    loadSteamStatus();
+    const deferred = setTimeout(() => {
+      fetchInsights();
+      loadSteamStatus();
+    }, 200);
+    return () => clearTimeout(deferred);
   }, []);
 
   useEffect(() => {
@@ -64,15 +86,13 @@ export default function App() {
 
   return (
     <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/library" element={<Library />} />
-        <Route path="/game/:id" element={<GameDetailPage />} />
-        <Route path="/recommendations" element={<Recommendations />} />
-        <Route path="/spin-wheel" element={<SpinWheel />} />
-        <Route path="/wrapped" element={<Wrapped />} />
-        <Route path="/settings" element={<Settings />} />
-      </Routes>
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          {PAGES.map((p) => (
+            <Route key={p.path} path={p.path} element={p.element} />
+          ))}
+        </Routes>
+      </Suspense>
     </Layout>
   );
 }

@@ -3,7 +3,17 @@ import path from 'path';
 import { app } from 'electron';
 import fs from 'fs';
 
+const fsp = fs.promises;
+
 let prisma: PrismaClient | null = null;
+
+const MIGRATIONS_TABLE = '_migrations';
+
+const REQUIRED_MIGRATIONS = [
+  'v1.1.0_achievement_columns',
+  'v1.1.0_achievement_table',
+  'v1.2.0_achievement_col_fix',
+] as const;
 
 function getDbPath(): string {
   if (process.env.DATABASE_URL) {
@@ -12,7 +22,7 @@ function getDbPath(): string {
   return path.join(app.getPath('userData'), 'backly.db');
 }
 
-function copyBundledDb(targetPath: string): void {
+async function copyBundledDb(targetPath: string): Promise<void> {
   try {
     const isDev = !app.isPackaged;
     let sourcePath: string | null = null;
@@ -20,31 +30,74 @@ function copyBundledDb(targetPath: string): void {
     if (isDev) {
       sourcePath = path.join(__dirname, '../../../prisma/backly.db');
     } else {
-      // In production, the db is bundled in extraResources
       const resourcePath = process.resourcesPath || path.join(process.execPath, '..');
       sourcePath = path.join(resourcePath, 'database', 'backly.db');
     }
 
-    if (sourcePath && fs.existsSync(sourcePath)) {
-      const dir = path.dirname(targetPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+    if (sourcePath) {
+      try {
+        await fsp.access(sourcePath);
+        const dir = path.dirname(targetPath);
+        await fsp.mkdir(dir, { recursive: true });
+        await fsp.copyFile(sourcePath, targetPath);
+        console.log('Copied bundled database to:', targetPath);
+      } catch {
+        console.warn('Bundled database not found at:', sourcePath);
       }
-      fs.copyFileSync(sourcePath, targetPath);
-      console.log('Copied bundled database to:', targetPath);
-    } else {
-      console.warn('Bundled database not found at:', sourcePath);
     }
   } catch (error) {
     console.error('Failed to copy bundled database:', error);
   }
 }
 
-function ensureDatabase(dbPath: string): void {
-  if (!fs.existsSync(dbPath)) {
+async function ensureDatabase(dbPath: string): Promise<void> {
+  try {
+    await fsp.access(dbPath);
+  } catch {
     console.log('Database not found at:', dbPath);
-    copyBundledDb(dbPath);
+    await copyBundledDb(dbPath);
   }
+}
+
+async function ensureMigrationsTable(): Promise<void> {
+  if (!prisma) return;
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "${MIGRATIONS_TABLE}" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "applied_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+
+async function getAppliedMigrations(): Promise<Set<string>> {
+  if (!prisma) return new Set();
+  try {
+    const rows: { id: string }[] =
+      await prisma.$queryRawUnsafe(`SELECT "id" FROM "${MIGRATIONS_TABLE}"`);
+    return new Set(rows.map((r: any) => r.id));
+  } catch {
+    return new Set();
+  }
+}
+
+async function markMigrationApplied(id: string): Promise<void> {
+  if (!prisma) return;
+  try {
+    await prisma.$executeRawUnsafe(
+      `INSERT OR IGNORE INTO "${MIGRATIONS_TABLE}" ("id") VALUES (?)`,
+      id
+    );
+  } catch {
+    // ignore — migration may already be tracked
+  }
+}
+
+async function runMigration(prisma: PrismaClient, id: string, fn: () => Promise<void>): Promise<void> {
+  const applied = await getAppliedMigrations();
+  if (applied.has(id)) return;
+  console.log(`Running migration: ${id}`);
+  await fn();
+  await markMigrationApplied(id);
 }
 
 async function ensureColumn(prisma: PrismaClient, table: string, name: string, type: string, def: string, notNull = false): Promise<void> {
@@ -62,18 +115,20 @@ async function ensureColumn(prisma: PrismaClient, table: string, name: string, t
 }
 
 async function runMigrations(prisma: PrismaClient): Promise<void> {
-  // v1.1.0: Add achievement completion columns to Game
-  const gameColumns: { name: string; type: string; default: string }[] = [
-    { name: 'totalAchievements', type: 'INTEGER', default: '0' },
-    { name: 'unlockedAchievements', type: 'INTEGER', default: '0' },
-    { name: 'completionPercentage', type: 'REAL', default: '0' },
-  ];
-  for (const col of gameColumns) {
-    await ensureColumn(prisma, 'Game', col.name, col.type, col.default);
-  }
+  await ensureMigrationsTable();
 
-  // v1.1.0: Create Achievement table (missing in older bundled DBs)
-  try {
+  await runMigration(prisma, 'v1.1.0_achievement_columns', async () => {
+    const gameColumns: { name: string; type: string; default: string }[] = [
+      { name: 'totalAchievements', type: 'INTEGER', default: '0' },
+      { name: 'unlockedAchievements', type: 'INTEGER', default: '0' },
+      { name: 'completionPercentage', type: 'REAL', default: '0' },
+    ];
+    for (const col of gameColumns) {
+      await ensureColumn(prisma, 'Game', col.name, col.type, col.default);
+    }
+  });
+
+  await runMigration(prisma, 'v1.1.0_achievement_table', async () => {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "Achievement" (
         "id" TEXT NOT NULL PRIMARY KEY,
@@ -89,7 +144,6 @@ async function runMigrations(prisma: PrismaClient): Promise<void> {
         CONSTRAINT "Achievement_gameId_fkey" FOREIGN KEY ("gameId") REFERENCES "Game" ("id") ON DELETE CASCADE ON UPDATE CASCADE
       )
     `);
-    // Create indices and unique constraint (ignored if already exist)
     const indices = [
       'CREATE UNIQUE INDEX IF NOT EXISTS "Achievement_gameId_name_key" ON "Achievement"("gameId", "name")',
       'CREATE INDEX IF NOT EXISTS "Achievement_gameId_idx" ON "Achievement"("gameId")',
@@ -98,24 +152,20 @@ async function runMigrations(prisma: PrismaClient): Promise<void> {
     for (const idx of indices) {
       try { await prisma.$executeRawUnsafe(idx); } catch { /* ignore */ }
     }
-    console.log('Ensured Achievement table exists');
-  } catch (err: any) {
-    console.warn('Migration warning for Achievement table:', err?.message);
-  }
+  });
 
-  // v1.2.0: Ensure Achievement columns added to existing tables
-  // apiName and globalProgress use NOT NULL because the code always provides them
-  await ensureColumn(prisma, 'Achievement', 'apiName', 'TEXT', "''", true);
-  await ensureColumn(prisma, 'Achievement', 'globalProgress', 'REAL', '0', true);
-  // iconGrayUrl must stay nullable (String? in schema); the code provides '' fallback
-  await ensureColumn(prisma, 'Achievement', 'iconGrayUrl', 'TEXT', 'NULL', false);
+  await runMigration(prisma, 'v1.2.0_achievement_col_fix', async () => {
+    await ensureColumn(prisma, 'Achievement', 'apiName', 'TEXT', "''", true);
+    await ensureColumn(prisma, 'Achievement', 'globalProgress', 'REAL', '0', true);
+    await ensureColumn(prisma, 'Achievement', 'iconGrayUrl', 'TEXT', 'NULL', false);
+  });
 }
 
 export async function initDatabase(): Promise<PrismaClient> {
   if (prisma) return prisma;
 
   const dbPath = getDbPath();
-  ensureDatabase(dbPath);
+  await ensureDatabase(dbPath);
 
   process.env.DATABASE_URL = `file:${dbPath}`;
 
