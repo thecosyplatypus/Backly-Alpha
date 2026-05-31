@@ -201,6 +201,84 @@ export async function fetchSteamGlobalAchievementPercentages(appId: string) {
   }
 }
 
+export interface SteamAppDetails {
+  genre: string | null;
+  developer: string | null;
+  publisher: string | null;
+  releaseDate: Date | null;
+}
+
+const steamDetailsCache = new Map<string, SteamAppDetails | null>();
+
+async function fetchSteamAppDetails(appId: string): Promise<SteamAppDetails | null> {
+  const cached = steamDetailsCache.get(appId);
+  if (cached !== undefined) return cached;
+
+  const MAX_RETRIES = 3;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await axios.get(`https://store.steampowered.com/api/appdetails?appids=${appId}`, { timeout: 10000 });
+      const entry = response.data?.[appId];
+      if (!entry?.success || !entry?.data) {
+        steamDetailsCache.set(appId, null);
+        return null;
+      }
+
+      const d = entry.data;
+      const result: SteamAppDetails = {
+        genre: d.genres?.length ? d.genres.map((g: any) => g.description).join(', ') : null,
+        developer: d.developers?.length ? d.developers[0] : null,
+        publisher: d.publishers?.length ? d.publishers[0] : null,
+        releaseDate: d.release_date?.date ? parseSteamDate(d.release_date.date) : null,
+      };
+      steamDetailsCache.set(appId, result);
+      return result;
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if ((status === 429 || status === 403) && attempt < MAX_RETRIES - 1) {
+        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        continue;
+      }
+      steamDetailsCache.set(appId, null);
+      return null;
+    }
+  }
+  steamDetailsCache.set(appId, null);
+  return null;
+}
+
+function parseSteamDate(dateStr: string): Date | null {
+  const parsed = new Date(dateStr);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export async function fetchSteamAppDetailsBatch(
+  appIds: string[],
+  onProgress?: (done: number, total: number) => void
+): Promise<Map<string, SteamAppDetails>> {
+  const details = new Map<string, SteamAppDetails>();
+  const CONCURRENCY = 5;
+  const BATCH_DELAY_MS = 300;
+  let completed = 0;
+
+  for (let i = 0; i < appIds.length; i += CONCURRENCY) {
+    const batch = appIds.slice(i, i + CONCURRENCY);
+    const promises = batch.map((appId) =>
+      fetchSteamAppDetails(appId).then((meta) => {
+        if (meta) details.set(appId, meta);
+      })
+    );
+    await Promise.allSettled(promises);
+    completed += batch.length;
+    onProgress?.(completed, appIds.length);
+    if (i + CONCURRENCY < appIds.length) {
+      await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
+    }
+  }
+
+  return details;
+}
+
 async function fetchSteamGames(steamId: string) {
   const apiKey = getSteamApiKey();
   if (!apiKey) throw new Error('Steam API key not configured');
@@ -267,9 +345,14 @@ export async function syncSteamLibrary(
     const allAppIds = steamGames.map((g: any) => g.appid.toString());
     const existingGames = await db.game.findMany({
       where: { steamAppId: { in: allAppIds } },
-      select: { id: true, steamAppId: true, hoursPlayed: true, status: true, coverArt: true },
+      select: { id: true, steamAppId: true, hoursPlayed: true, status: true, coverArt: true, genre: true, developer: true, publisher: true, releaseDate: true },
     });
     const existingMap = new Map(existingGames.map(g => [g.steamAppId, g]));
+
+    onProgress?.(0, total, 'Fetching game metadata from Steam store...');
+    const metadataMap = await fetchSteamAppDetailsBatch(allAppIds, (done, totalApps) => {
+      onProgress?.(done, total, `Fetching metadata (${done}/${totalApps})...`);
+    });
 
     for (let i = 0; i < total; i++) {
       const game = steamGames[i];
@@ -280,6 +363,7 @@ export async function syncSteamLibrary(
         const status = playtimeHours === 0 ? GameStatus.BACKLOG : GameStatus.PLAYING;
         const steamAppId = game.appid.toString();
         const existing = existingMap.get(steamAppId);
+        const meta = metadataMap.get(steamAppId);
 
         if (!existing) {
           const slug = `${game.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${game.appid}`;
@@ -298,6 +382,10 @@ export async function syncSteamLibrary(
               importedFromSteam: true,
               lastPlayed: game.rtime_last_played ? new Date(game.rtime_last_played * 1000) : undefined,
               profileId: profile.id,
+              genre: meta?.genre ?? null,
+              developer: meta?.developer ?? null,
+              publisher: meta?.publisher ?? null,
+              releaseDate: meta?.releaseDate ?? null,
             },
           });
           imported++;
@@ -318,6 +406,13 @@ export async function syncSteamLibrary(
 
           if (game.rtime_last_played) {
             updateData.lastPlayed = new Date(game.rtime_last_played * 1000);
+          }
+
+          if (meta) {
+            if (!existing.genre) updateData.genre = meta.genre;
+            if (!existing.developer) updateData.developer = meta.developer;
+            if (!existing.publisher) updateData.publisher = meta.publisher;
+            if (!existing.releaseDate) updateData.releaseDate = meta.releaseDate;
           }
 
           await db.game.update({

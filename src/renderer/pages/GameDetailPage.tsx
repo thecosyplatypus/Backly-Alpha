@@ -510,14 +510,33 @@ export default function GameDetailPage() {
                 <span>✓</span>
                 <span>Imported from Steam</span>
               </div>
-              <a
-                href={`https://store.steampowered.com/app/${game.steamAppId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[10px] md:text-xs text-backly-400 hover:text-backly-300 mt-1.5 md:mt-2 inline-block"
-              >
-                View on Steam →
-              </a>
+              <div className="flex items-center gap-3 mt-1.5 md:mt-2">
+                <a
+                  href={`https://store.steampowered.com/app/${game.steamAppId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] md:text-xs text-backly-400 hover:text-backly-300 inline-block"
+                >
+                  View on Steam →
+                </a>
+                <button
+                  onClick={async () => {
+                    const result = await window.backly.refreshGameMetadata(game.id);
+                    if (result.success) {
+                      setGame((prev: any) => ({
+                        ...prev,
+                        genre: result.genre ?? prev.genre,
+                        developer: result.developer ?? prev.developer,
+                        publisher: result.publisher ?? prev.publisher,
+                        releaseDate: result.releaseDate ?? prev.releaseDate,
+                      }));
+                    }
+                  }}
+                  className="text-[10px] md:text-xs text-gold-500 hover:text-gold-400 transition-colors"
+                >
+                  Refresh metadata
+                </button>
+              </div>
             </div>
           )}
         </div>

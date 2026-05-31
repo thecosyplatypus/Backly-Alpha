@@ -316,6 +316,23 @@ export default function Settings() {
           </div>
 
           <SteamSyncCard />
+          <button
+            onClick={async () => {
+              const btn = document.activeElement as HTMLButtonElement;
+              if (btn) btn.disabled = true;
+              try {
+                const result = await window.backly.refreshAllMetadata();
+                alert(result.message || 'Done');
+              } catch (err: any) {
+                alert('Failed: ' + (err?.message || err));
+              } finally {
+                if (btn) btn.disabled = false;
+              }
+            }}
+            className="mt-3 w-full px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-400 hover:text-gray-300 font-medium text-[11px] transition-all duration-200 border border-white/[0.06]"
+          >
+            Refresh metadata for all Steam games
+          </button>
         </SettingsCard>
 
         {/* General Settings */}

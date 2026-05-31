@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import { getDatabase, initDatabase } from './database';
-import { getSteamApiKey, steamAuth, syncSteamLibrary } from './steam-auth';
+import { getSteamApiKey, steamAuth, syncSteamLibrary, fetchSteamAppDetailsBatch } from './steam-auth';
 import {
   getDashboardStats,
   getGameById,
@@ -232,6 +232,75 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
   ipcMain.handle('get-achievement-stats', async () => {
     const { SteamAchievementService } = await import('./steam-achievement-service');
     return SteamAchievementService.getInstance().getStats();
+  });
+
+  ipcMain.handle('refresh-game-metadata', async (_event, gameId: string) => {
+    try {
+      const db = getDatabase();
+      const game = await db.game.findUnique({ where: { id: gameId } });
+      if (!game?.steamAppId) {
+        return { success: false, message: 'Game has no Steam App ID' };
+      }
+      const metaMap = await fetchSteamAppDetailsBatch([game.steamAppId]);
+      const meta = metaMap.get(game.steamAppId);
+      if (!meta) {
+        return { success: false, message: 'Could not fetch metadata from Steam' };
+      }
+      await db.game.update({
+        where: { id: gameId },
+        data: {
+          genre: meta.genre,
+          developer: meta.developer,
+          publisher: meta.publisher,
+          releaseDate: meta.releaseDate,
+        },
+      });
+      return { success: true, ...meta };
+    } catch (err: any) {
+      console.error('[refresh-game-metadata] Error:', err);
+      return { success: false, message: err?.message || 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('refresh-all-metadata', async (_event) => {
+    try {
+      const db = getDatabase();
+      const games = await db.game.findMany({
+        where: { steamAppId: { not: null } },
+        select: { id: true, steamAppId: true, genre: true, developer: true, publisher: true, releaseDate: true },
+      });
+      const allIds = games.map(g => g.steamAppId!).filter(Boolean);
+      if (allIds.length === 0) {
+        return { success: true, enriched: 0, total: 0, message: 'No Steam games found' };
+      }
+
+      const uniqueIds = [...new Set(allIds)];
+      const metaMap = await fetchSteamAppDetailsBatch(uniqueIds, (done, total) => {
+        mainWindow?.webContents.send('sync-progress', { current: done, total, message: `Fetching metadata (${done}/${total})...` });
+      });
+
+      let enriched = 0;
+      for (const game of games) {
+        if (!game.steamAppId) continue;
+        const meta = metaMap.get(game.steamAppId);
+        if (!meta) continue;
+
+        const updateData: any = {};
+        if (!game.genre && meta.genre) { updateData.genre = meta.genre; enriched++; }
+        if (!game.developer && meta.developer) { updateData.developer = meta.developer; enriched++; }
+        if (!game.publisher && meta.publisher) { updateData.publisher = meta.publisher; enriched++; }
+        if (!game.releaseDate && meta.releaseDate) { updateData.releaseDate = meta.releaseDate; enriched++; }
+
+        if (Object.keys(updateData).length > 0) {
+          await db.game.update({ where: { id: game.id }, data: updateData });
+        }
+      }
+
+      return { success: true, enriched, total: games.length, message: `Enriched ${enriched} fields across ${games.length} games` };
+    } catch (err: any) {
+      console.error('[refresh-all-metadata] Error:', err);
+      return { success: false, message: err?.message || 'Unknown error' };
+    }
   });
 
   ipcMain.handle('get-wrapped-data', async (_event, year: number) => {
