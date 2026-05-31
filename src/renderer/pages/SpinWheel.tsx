@@ -1,38 +1,24 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
 import { GameStatus } from '../../shared/types';
 
 const GOLD = '#facc15';
-const GOLD_RGB = '250,204,21';
 const NUM_WHEEL_GAMES = 30;
-const ARROW_KICK_STRENGTH = 0.45;
-
-const PLATFORM_COLORS: Record<string, string> = {
-  pc: '#1b2838', steam: '#1b2838', playstation: '#003791', 'ps5': '#003791',
-  xbox: '#107c10', nintendo: '#e60012',
-};
-
-const PLATFORM_ICONS: Record<string, string> = {
-  steam: 'S', playstation: 'P', ps5: 'P5', xbox: 'X', nintendo: 'N',
-};
-
-function SpinIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 md:w-5 h-4 md:h-5">
-      <path d="M12 2a10 10 0 0110 10M12 2v4M12 2l3 3M12 22A10 10 0 012 12M12 22v-4M12 22l-3-3M20 12h4M4 12H2M20 12l3-3M4 12l-2-3M17 7l3-3M7 17l-3 3" />
-    </svg>
-  );
-}
-
-function RefreshIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 md:w-4 h-3.5 md:h-4">
-      <path d="M1 4v6h6M23 20v-6h-6" />
-      <path d="M20.49 9A9 9 0 005.64 5.64L1 10M22.54 14.01l-4.64 4.35a9 9 0 01-14.85-3.36" />
-    </svg>
-  );
-}
+const FRICTION = 0.985;
+const MIN_VELOCITY = 0.0008;
+const FIXED_RADIUS = 280;
+const ARC = Math.PI;
+const ARC_START = 0;
+const ARC_END = Math.PI;
+const POOL_FILTER_OPTIONS = [
+  { value: 'random', label: 'Random' },
+  { value: GameStatus.BACKLOG, label: 'Backlog' },
+  { value: GameStatus.STARTED, label: 'Started' },
+  { value: GameStatus.PLAYING, label: 'Playing' },
+  { value: GameStatus.ALMOST_COMPLETED, label: 'Almost Completed' },
+];
 
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -43,41 +29,12 @@ function shuffleArray<T>(arr: T[]): T[] {
   return a;
 }
 
-function pickEligibleGames(games: any[]): any[] {
-  const eligible = games.filter((g) => {
-    const status = g.status as GameStatus;
-    return status === GameStatus.BACKLOG || status === GameStatus.PLAYING;
-  });
+function pickEligibleGames(games: any[], filter: string): any[] {
+  const eligible = filter === 'random'
+    ? [...games]
+    : games.filter((g) => g.status === filter);
   if (eligible.length === 0) return [];
-  const shuffled = shuffleArray(eligible);
-  const backlog = shuffled.filter((g) => g.status === GameStatus.BACKLOG);
-  const playing = shuffled.filter((g) => g.status === GameStatus.PLAYING);
-  const selected: any[] = [];
-  const backlogCount = Math.min(backlog.length, Math.floor(NUM_WHEEL_GAMES * 0.7));
-  const playingCount = Math.min(playing.length, NUM_WHEEL_GAMES - backlogCount);
-  selected.push(...backlog.slice(0, backlogCount));
-  selected.push(...playing.slice(0, playingCount));
-  if (selected.length === 0) return [];
-  return shuffleArray(selected).slice(0, NUM_WHEEL_GAMES);
-}
-
-function getInitials(name: string): string {
-  return name.split(/[\s-]+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-}
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  r = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+  return shuffleArray(eligible).slice(0, NUM_WHEEL_GAMES);
 }
 
 function getSegmentColor(index: number): string {
@@ -89,21 +46,7 @@ function getSegmentColor(index: number): string {
   return colors[index % colors.length];
 }
 
-function hasRarity(index: number): { rare: boolean; color: string } {
-  const rareIndices = [3, 7, 13, 17, 22, 27];
-  const isRare = rareIndices.includes(index);
-  return {
-    rare: isRare,
-    color: isRare ? `rgba(168,85,247,0.15)` : 'transparent',
-  };
-}
-
-interface Particle {
-  x: number; y: number;
-  vx: number; vy: number;
-  life: number; maxLife: number;
-  size: number; color: string;
-}
+const imageCache = new Map<string, HTMLImageElement>();
 
 export default function SpinWheel() {
   const navigate = useNavigate();
@@ -112,646 +55,280 @@ export default function SpinWheel() {
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState<any | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [poolFilter, setPoolFilter] = useState('random');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rotationRef = useRef(0);
   const velocityRef = useRef(0);
   const animFrameRef = useRef<number>(0);
   const spinningRef = useRef(false);
-  const winnerRef = useRef<any | null>(null);
-  const pulsePhaseRef = useRef(0);
-  const renderPulseRef = useRef(false);
-  const particlesRef = useRef<Particle[]>([]);
-  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
-  const [canvasDims, setCanvasDims] = useState({ w: 800, h: 600 });
-  const wheelCenterRef = useRef({ x: 400, y: 500 });
-  const wheelRadiusRef = useRef(400);
-  const segAngleRef = useRef((2 * Math.PI) / NUM_WHEEL_GAMES);
-  const arrowAngleRef = useRef(0);
-  const arrowVelocityRef = useRef(0);
-  const prevPinAnglesRef = useRef<number[]>([]);
-  const lastHitIndexRef = useRef(-1);
-  const pinHitCooldownRef = useRef(0);
-  const arrowGlowRef = useRef(0);
+  const dimsRef = useRef({ w: 800, h: 600 });
 
   useEffect(() => {
     fetchGames({ limit: 2000, sort: 'recent' });
   }, []);
 
   useEffect(() => { spinningRef.current = spinning; }, [spinning]);
-  useEffect(() => { winnerRef.current = winner; }, [winner]);
 
-  useEffect(() => {
-    if (games.length > 0) {
-      const picked = pickEligibleGames(games);
-      setWheelGames(picked);
-      setWinner(null);
-      setShowResult(false);
-      rotationRef.current = 0;
-      velocityRef.current = 0;
-    }
-  }, [games]);
-
-  const getCoverUrl = useCallback((game: any): string => {
-    if (game.coverArt) return game.coverArt;
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(game.title)}&background=1a1f2e&color=facc15&size=128&font-size=0.35&bold=true&format=png`;
-  }, []);
-
-  const loadImage = useCallback((url: string): Promise<HTMLImageElement> => {
-    return new Promise((resolve) => {
-      if (imageCacheRef.current.has(url)) {
-        resolve(imageCacheRef.current.get(url)!);
-        return;
+  const loadWheelGames = useCallback((games: any[], filter: string) => {
+    const picked = pickEligibleGames(games, filter);
+    setWheelGames(picked);
+    setWinner(null);
+    setShowResult(false);
+    rotationRef.current = 0;
+    velocityRef.current = 0;
+    imageCache.clear();
+    picked.forEach((g) => {
+      if (g.coverArt && !imageCache.has(g.coverArt)) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = g.coverArt;
+        imageCache.set(g.coverArt, img);
       }
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        imageCacheRef.current.set(url, img);
-        resolve(img);
-      };
-      img.onerror = () => resolve(img);
-      img.src = url;
     });
   }, []);
 
-  const updateCanvasSize = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const w = Math.ceil(rect.width);
-    const h = Math.ceil(rect.height);
-    const dpr = window.devicePixelRatio || 1;
-    const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
-    }
-    const radius = Math.max(200, w * 0.55);
-    const cx = w / 2;
-    const cy = h * 0.82;
-    wheelCenterRef.current = { x: cx, y: cy };
-    wheelRadiusRef.current = radius;
-    segAngleRef.current = (2 * Math.PI) / Math.max(1, wheelGames.length || NUM_WHEEL_GAMES);
-    setCanvasDims({ w, h });
-  }, [wheelGames.length]);
-
   useEffect(() => {
-    updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
-  }, [updateCanvasSize]);
+    if (games.length > 0) {
+      loadWheelGames(games, poolFilter);
+    }
+  }, [games, poolFilter, loadWheelGames]);
 
-  const drawWheel = useCallback((rotation: number, ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    const cx = wheelCenterRef.current.x;
-    const cy = wheelCenterRef.current.y;
-    const radius = wheelRadiusRef.current;
+  const getCoverUrl = useCallback((game: any): string => {
+    if (game.coverArt) return game.coverArt;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(game.title)}&background=1a1f2e&color=facc15&size=80&font-size=0.35&bold=true&format=png`;
+  }, []);
+
+  const drawWheel = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number, angle: number) => {
     const n = wheelGames.length;
-    const segAngle = segAngleRef.current;
     if (n === 0) return;
+
+    const cx = w / 2;
+    const cy = h * 0.35;
+    const radius = FIXED_RADIUS;
+    const segAngle = ARC / n;
 
     ctx.clearRect(0, 0, w, h);
 
-    const gradient = ctx.createRadialGradient(cx, cy - radius * 0.3, 0, cx, cy, radius * 1.3);
-    gradient.addColorStop(0, '#141824');
-    gradient.addColorStop(0.4, '#0f111a');
-    gradient.addColorStop(0.7, '#0a0c12');
-    gradient.addColorStop(1, '#06080e');
-    ctx.fillStyle = gradient;
+    const bgGrad = ctx.createRadialGradient(cx, cy - radius * 0.3, 0, cx, cy, radius * 1.3);
+    bgGrad.addColorStop(0, '#141824');
+    bgGrad.addColorStop(0.5, '#0f111a');
+    bgGrad.addColorStop(1, '#06080e');
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
-
-    const TOP = -Math.PI / 2;
 
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(rotation);
+    ctx.rotate(angle);
 
     for (let i = 0; i < n; i++) {
-      const start = TOP + i * segAngle;
+      const start = ARC_START + i * segAngle;
       const end = start + segAngle;
       const midAngle = start + segAngle / 2;
 
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.arc(0, 0, radius, start, end);
+      ctx.arc(0, 0, radius, start, end, false);
       ctx.closePath();
 
-      const segGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
       const baseColor = getSegmentColor(i);
-      segGrad.addColorStop(0, lighten(baseColor, 15));
+      const segGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+      segGrad.addColorStop(0, baseColor);
       segGrad.addColorStop(0.6, baseColor);
-      segGrad.addColorStop(1, darken(baseColor, 10));
+      segGrad.addColorStop(1, '#06080e');
       ctx.fillStyle = segGrad;
       ctx.fill();
 
-      ctx.strokeStyle = 'rgba(250, 204, 21, 0.08)';
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.06)';
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      const rarity = hasRarity(i);
-      if (rarity.rare) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.arc(0, 0, radius, start, end);
-        ctx.closePath();
-        ctx.fillStyle = rarity.color;
-        ctx.fill();
-        ctx.restore();
-      }
-
-      if (renderPulseRef.current && winner && wheelGames[i].id === winner.id) {
-        const pulse = 0.4 + 0.6 * Math.abs(Math.sin(pulsePhaseRef.current));
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.arc(0, 0, radius, start, end);
-        ctx.closePath();
-        ctx.fillStyle = `rgba(250, 204, 21, ${0.08 * pulse})`;
-        ctx.fill();
-        ctx.shadowColor = `rgba(250, 204, 21, ${0.15 * pulse})`;
-        ctx.shadowBlur = 20 * pulse;
-        ctx.strokeStyle = `rgba(250, 204, 21, ${0.3 * pulse})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.restore();
-      }
-
-      const iconRadius = radius * 0.88;
-      const game = wheelGames[i];
-      const url = getCoverUrl(game);
+      const iconR = radius * 0.62;
+      const ix = Math.cos(midAngle) * iconR;
+      const iy = Math.sin(midAngle) * iconR;
+      const iconSize = Math.max(20, radius * 0.07);
 
       ctx.save();
-      ctx.rotate(midAngle);
-      ctx.translate(iconRadius, 0);
+      ctx.translate(ix, iy);
+      ctx.rotate(midAngle + Math.PI / 2);
 
-      const iconSize = Math.max(14, radius * 0.065);
-      const borderRadius = 3;
-
-      const ic = iconSize;
-      roundRect(ctx, -ic / 2, -ic / 2, ic, ic, borderRadius);
+      const r2 = iconSize / 2;
+      ctx.beginPath();
+      ctx.moveTo(r2, 0);
+      ctx.arc(0, 0, r2, 0, Math.PI * 2);
+      ctx.closePath();
       ctx.fillStyle = 'rgba(15,17,23,0.7)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(250,204,21,0.1)';
+      ctx.strokeStyle = 'rgba(250,204,21,0.15)';
       ctx.lineWidth = 0.5;
       ctx.stroke();
 
-      const cached = imageCacheRef.current.get(url);
+      const game = wheelGames[i];
+      const url = getCoverUrl(game);
+      const cached = imageCache.get(url);
       if (cached && cached.complete && cached.naturalWidth > 0) {
         ctx.save();
-        roundRect(ctx, -ic / 2, -ic / 2, ic, ic, borderRadius);
+        ctx.beginPath();
+        ctx.arc(0, 0, r2 - 1, 0, Math.PI * 2);
+        ctx.closePath();
         ctx.clip();
-        ctx.drawImage(cached, -ic / 2, -ic / 2, ic, ic);
+        ctx.drawImage(cached, -r2 + 1, -r2 + 1, iconSize - 2, iconSize - 2);
         ctx.restore();
       } else {
         ctx.fillStyle = 'rgba(250,204,21,0.3)';
-        ctx.font = `bold ${Math.max(6, ic * 0.4)}px sans-serif`;
+        ctx.font = `bold ${r2 * 0.6}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(getInitials(game.title), 0, 0);
+        ctx.fillText(game.title.charAt(0).toUpperCase(), 0, 0);
       }
 
       ctx.restore();
 
+      const textR = radius * 0.85;
+      const tx = Math.cos(midAngle) * textR;
+      const ty = Math.sin(midAngle) * textR;
+      const textAngle = midAngle + Math.PI / 2;
+
       ctx.save();
-      ctx.rotate(midAngle);
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
+      ctx.translate(tx, ty);
+      ctx.rotate(textAngle);
 
-      const fontSize = Math.max(8, Math.min(11, radius * 0.019));
-      ctx.font = `600 ${fontSize}px "Inter","Segoe UI",sans-serif`;
-
-      const displayText = game.title.length > 16
-        ? game.title.slice(0, 14) + '\u2026'
+      const displayText = game.title.length > 14
+        ? game.title.slice(0, 11) + '\u2026'
         : game.title;
 
-      const textX = iconRadius - iconSize * 0.5 - 5 - (rarity.rare ? 4 : 0);
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 4;
       ctx.fillStyle = '#e2e8f0';
-      ctx.fillText(displayText, textX, 0);
+      ctx.font = `600 ${Math.max(9, Math.min(12, radius * 0.02))}px Inter, system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(displayText, 0, 0);
       ctx.shadowBlur = 0;
 
       ctx.restore();
-
-      const plat = (game.platform || 'pc').toLowerCase();
-      if (PLATFORM_ICONS[plat]) {
-        ctx.save();
-        ctx.rotate(midAngle);
-        ctx.translate(radius - 3, 0);
-        const badgeSize = Math.max(8, radius * 0.032);
-        const badgeBg = PLATFORM_COLORS[plat] || '#333';
-        roundRect(ctx, -badgeSize / 2, -badgeSize / 2, badgeSize, badgeSize, 2);
-        ctx.fillStyle = badgeBg;
-        ctx.globalAlpha = 0.7;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = '#fff';
-        ctx.font = `bold ${badgeSize * 0.5}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(PLATFORM_ICONS[plat], 0, 0.5);
-        ctx.restore();
-      }
-
-      if (rarity.rare) {
-        ctx.save();
-        ctx.rotate(midAngle);
-        ctx.translate(radius - 3, 0);
-        const starSize = Math.max(5, radius * 0.025);
-        ctx.fillStyle = 'rgba(168,85,247,0.6)';
-        ctx.font = `${starSize}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('\u2605', 0, -starSize * 1.6);
-        ctx.restore();
-      }
-
-      const pinAngle = start;
-      ctx.save();
-      ctx.rotate(pinAngle);
-      const pinHeight = Math.max(6, radius * 0.025);
-      const pinWidth = Math.max(3, radius * 0.012);
-      ctx.beginPath();
-      ctx.moveTo(0, radius - pinHeight * 0.3);
-      ctx.lineTo(-pinWidth, radius + pinHeight * 0.7);
-      ctx.lineTo(pinWidth, radius + pinHeight * 0.7);
-      ctx.closePath();
-      const pinGrad = ctx.createLinearGradient(0, radius - pinHeight, 0, radius + pinHeight);
-      pinGrad.addColorStop(0, '#3d3020');
-      pinGrad.addColorStop(0.5, GOLD);
-      pinGrad.addColorStop(1, '#8a6f20');
-      ctx.fillStyle = pinGrad;
-      ctx.fill();
-      ctx.strokeStyle = `rgba(${GOLD_RGB},0.3)`;
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-
-      const highlightY = radius + pinHeight * 0.1;
-      ctx.beginPath();
-      ctx.arc(0, highlightY, pinWidth * 0.6, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,255,255,${0.15 + 0.1 * Math.abs(Math.sin(pinAngle * 3))})`;
-      ctx.fill();
-      ctx.restore();
     }
 
-    const arrowGlow = arrowGlowRef.current;
-    if (arrowGlow > 0.01) {
-      ctx.save();
-      ctx.rotate(-Math.PI / 2);
-      ctx.beginPath();
-      ctx.arc(0, -radius * 0.15, radius * 0.12, 0, Math.PI * 2);
-      const glowAlpha = arrowGlow * 0.15;
-      const glowGrad = ctx.createRadialGradient(0, -radius * 0.15, 0, 0, -radius * 0.15, radius * 0.12);
-      glowGrad.addColorStop(0, `rgba(${GOLD_RGB},${glowAlpha})`);
-      glowGrad.addColorStop(1, `rgba(${GOLD_RGB},0)`);
-      ctx.fillStyle = glowGrad;
-      ctx.fill();
-      ctx.restore();
-    }
+    const outerGlow = ctx.createRadialGradient(0, 0, radius * 0.85, 0, 0, radius);
+    outerGlow.addColorStop(0, 'rgba(250,204,21,0)');
+    outerGlow.addColorStop(0.7, 'rgba(250,204,21,0.01)');
+    outerGlow.addColorStop(1, 'rgba(250,204,21,0.05)');
+    ctx.fillStyle = outerGlow;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, radius, ARC_START, ARC_END, false);
+    ctx.closePath();
+    ctx.fill();
 
     ctx.restore();
 
-    const lightGrad = ctx.createRadialGradient(cx, cy - radius * 0.5, 0, cx, cy, radius);
-    lightGrad.addColorStop(0, 'rgba(250,204,21,0.03)');
-    lightGrad.addColorStop(0.5, 'rgba(250,204,21,0.01)');
-    lightGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = lightGrad;
-    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+    drawCenterHub(ctx, cx, cy);
+    drawPointer(ctx, cx, cy, radius);
+  }, [wheelGames, getCoverUrl]);
 
-    const shadowGrad = ctx.createRadialGradient(cx, cy + radius * 0.1, radius * 0.2, cx, cy + radius * 0.1, radius * 1.1);
-    shadowGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    shadowGrad.addColorStop(1, 'rgba(0,0,0,0.4)');
-    ctx.fillStyle = shadowGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    drawCenterHub(ctx, cx, cy, radius);
-    drawBottomVignette(ctx, w, h);
-  }, [wheelGames, winner, getCoverUrl]);
-
-  function drawCenterHub(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number) {
-    const hubRadius = Math.max(24, radius * 0.06);
-    const outerRadius = hubRadius * 1.3;
-    const isSpinning = spinningRef.current;
-    const hasWinner = winnerRef.current !== null;
+  function drawCenterHub(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
+    const hubR = 36;
 
     ctx.save();
+    ctx.translate(cx, cy);
 
-    const hubGrad = ctx.createRadialGradient(cx, cy - hubRadius * 0.3, 0, cx, cy, outerRadius);
-    hubGrad.addColorStop(0, '#2a2d3a');
-    hubGrad.addColorStop(0.5, '#1a1f2e');
-    hubGrad.addColorStop(1, '#0f111a');
     ctx.beginPath();
-    ctx.arc(cx, cy, outerRadius, 0, Math.PI * 2);
-    ctx.fillStyle = hubGrad;
+    ctx.arc(0, 0, hubR * 1.4, 0, Math.PI * 2);
+    const outerGrad = ctx.createRadialGradient(0, -5, 0, 0, 0, hubR * 1.4);
+    outerGrad.addColorStop(0, '#2a2d3a');
+    outerGrad.addColorStop(0.5, '#1a1f2e');
+    outerGrad.addColorStop(1, '#0f111a');
+    ctx.fillStyle = outerGrad;
     ctx.fill();
-
-    ctx.shadowColor = `rgba(${GOLD_RGB},0.3)`;
-    ctx.shadowBlur = 12;
-    ctx.strokeStyle = `rgba(${GOLD_RGB},0.4)`;
+    ctx.strokeStyle = `rgba(250,204,21,0.3)`;
     ctx.lineWidth = 1.5;
+    ctx.shadowColor = `rgba(250,204,21,0.2)`;
+    ctx.shadowBlur = 10;
     ctx.stroke();
     ctx.shadowBlur = 0;
 
     ctx.beginPath();
-    ctx.arc(cx, cy, hubRadius, 0, Math.PI * 2);
-    const innerGrad = ctx.createRadialGradient(cx - hubRadius * 0.2, cy - hubRadius * 0.2, 0, cx, cy, hubRadius);
+    ctx.arc(0, 0, hubR, 0, Math.PI * 2);
+    const innerGrad = ctx.createRadialGradient(-5, -5, 0, 0, 0, hubR);
     innerGrad.addColorStop(0, '#3d3020');
     innerGrad.addColorStop(0.5, '#2a2010');
     innerGrad.addColorStop(1, '#1a1508');
     ctx.fillStyle = innerGrad;
     ctx.fill();
-
-    ctx.shadowColor = `rgba(${GOLD_RGB},0.5)`;
-    ctx.shadowBlur = 8;
-    ctx.strokeStyle = `rgba(${GOLD_RGB},0.6)`;
+    ctx.strokeStyle = `rgba(250,204,21,0.5)`;
     ctx.lineWidth = 1;
+    ctx.shadowColor = `rgba(250,204,21,0.4)`;
+    ctx.shadowBlur = 8;
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    const spinState = isSpinning ? 'spinning' : (hasWinner ? 'done' : 'idle');
-    const pulseAlpha = spinState === 'done'
-      ? 0.5 + 0.5 * Math.abs(Math.sin(pulsePhaseRef.current))
-      : 0.6;
-
-    ctx.globalAlpha = pulseAlpha;
-    ctx.shadowColor = `rgba(${GOLD_RGB},0.6)`;
-    ctx.shadowBlur = 15;
-    ctx.font = `bold ${hubRadius * 0.6}px "Inter","Segoe UI",sans-serif`;
+    ctx.fillStyle = GOLD;
+    ctx.font = 'bold 20px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = GOLD;
-    ctx.fillText('B', cx, cy + 0.5);
+    ctx.shadowColor = `rgba(250,204,21,0.5)`;
+    ctx.shadowBlur = 12;
+    ctx.fillText('B', 0, 0.5);
     ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
 
     ctx.restore();
   }
 
-  function drawBottomVignette(ctx: CanvasRenderingContext2D, w: number, h: number) {
-    const grad = ctx.createLinearGradient(0, h - 100, 0, h);
-    grad.addColorStop(0, 'rgba(10,12,18,0)');
-    grad.addColorStop(1, 'rgba(10,12,18,1)');
+  function drawPointer(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number) {
+    const tipY = cy - 5;
+    const arrowH = 22;
+    const arrowW = 14;
+
+    ctx.save();
+    ctx.shadowColor = `rgba(250,204,21,0.5)`;
+    ctx.shadowBlur = 10;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, tipY);
+    ctx.lineTo(cx - arrowW, tipY - arrowH);
+    ctx.lineTo(cx + arrowW, tipY - arrowH);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(0, tipY, 0, tipY - arrowH);
+    grad.addColorStop(0, '#ffd700');
+    grad.addColorStop(1, '#eab308');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, h - 100, w, 100);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, tipY - 1);
+    ctx.lineTo(cx - arrowW * 0.7, tipY - arrowH + 2);
+    ctx.lineTo(cx + arrowW * 0.7, tipY - arrowH + 2);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fill();
+
+    ctx.restore();
   }
 
-  function darken(hex: string, amount: number): string {
-    const num = parseInt(hex.slice(1), 16);
-    const r = Math.max(0, (num >> 16) - amount);
-    const g = Math.max(0, ((num >> 8) & 0xFF) - amount);
-    const b = Math.max(0, (num & 0xFF) - amount);
-    return `rgb(${r},${g},${b})`;
-  }
-
-  function lighten(hex: string, amount: number): string {
-    const num = parseInt(hex.slice(1), 16);
-    const r = Math.min(255, (num >> 16) + amount);
-    const g = Math.min(255, ((num >> 8) & 0xFF) + amount);
-    const b = Math.min(255, (num & 0xFF) + amount);
-    return `rgb(${r},${g},${b})`;
-  }
-
-  const spawnParticles = useCallback((cx: number, cy: number) => {
-    const count = 40 + Math.floor(Math.random() * 30);
-    const particles: Particle[] = [];
-    for (let i = 0; i < count; i++) {
-      const angle = -Math.PI + Math.random() * Math.PI;
-      const speed = 1 + Math.random() * 4;
-      const colors = ['#facc15', '#ffd700', '#fff', '#eab308', '#ffed4a', '#f5c400'];
-      particles.push({
-        x: cx,
-        y: cy,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 2,
-        life: 1,
-        maxLife: 0.6 + Math.random() * 1.0,
-        size: 1.5 + Math.random() * 3,
-        color: colors[Math.floor(Math.random() * colors.length)],
-      });
-    }
-    return particles;
-  }, []);
-
-  const animateParticles = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    const particles = particlesRef.current;
-    if (particles.length === 0) return false;
-    let alive = false;
-    for (const p of particles) {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.05;
-      p.life -= 1 / (60 * p.maxLife);
-      if (p.life > 0) alive = true;
-    }
-    for (const p of particles) {
-      if (p.life <= 0) continue;
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, p.life);
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 6;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-      ctx.fillStyle = p.color;
-      ctx.fill();
-      ctx.restore();
-    }
-    return alive;
-  }, []);
-
-  const renderFrame = useCallback((rotation: number) => {
+  const renderFrame = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
-    const w = canvasDims.w;
-    const h = canvasDims.h;
-
+    const { w, h } = dimsRef.current;
     ctx.save();
     ctx.scale(dpr, dpr);
-
-    drawWheel(rotation, ctx, w, h);
-
-    const cx = wheelCenterRef.current.x;
-    const cy = wheelCenterRef.current.y;
-    const radius = wheelRadiusRef.current;
-    const arrowAngle = arrowAngleRef.current;
-    const isSpinning = spinningRef.current;
-
-    const arrowOuterRadius = radius - Math.max(8, radius * 0.025);
-    const arrowInnerRadius = radius * 0.75;
-    const arrowWidth = Math.max(12, radius * 0.035);
-
-    ctx.save();
-    ctx.translate(cx, cy);
-
-    const arrowWorldAngle = -Math.PI / 2 + arrowAngle * (Math.PI / 180);
-
-    ctx.save();
-    ctx.rotate(arrowWorldAngle);
-    ctx.translate(0, -(arrowOuterRadius + arrowInnerRadius) / 2);
-
-    const arrowLen = arrowOuterRadius - arrowInnerRadius;
-    const aw = arrowWidth;
-    const ah = arrowLen;
-
-    ctx.beginPath();
-    ctx.moveTo(0, -ah / 2);
-    ctx.lineTo(-aw * 0.45, -ah * 0.3);
-    ctx.lineTo(-aw * 0.35, ah * 0.35);
-    ctx.lineTo(0, ah / 2);
-    ctx.lineTo(aw * 0.35, ah * 0.35);
-    ctx.lineTo(aw * 0.45, -ah * 0.3);
-    ctx.closePath();
-
-    const arrowGrad = ctx.createLinearGradient(0, -ah / 2, 0, ah / 2);
-    arrowGrad.addColorStop(0, '#ffd700');
-    arrowGrad.addColorStop(0.3, GOLD);
-    arrowGrad.addColorStop(0.7, '#eab308');
-    arrowGrad.addColorStop(1, '#a88400');
-    ctx.fillStyle = arrowGrad;
-    ctx.shadowColor = `rgba(${GOLD_RGB},${isSpinning ? 0.5 : 0.3})`;
-    ctx.shadowBlur = isSpinning ? 20 : 10;
-    ctx.fill();
-
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = `rgba(${GOLD_RGB},0.4)`;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(0, -ah / 2 + 2);
-    ctx.lineTo(-aw * 0.25, -ah * 0.2);
-    ctx.lineTo(-aw * 0.2, ah * 0.3);
-    ctx.lineTo(0, ah * 0.4);
-    ctx.lineTo(aw * 0.2, ah * 0.3);
-    ctx.lineTo(aw * 0.25, -ah * 0.2);
-    ctx.closePath();
-    const hiliteGrad = ctx.createLinearGradient(0, -ah / 2, 0, ah / 2);
-    hiliteGrad.addColorStop(0, 'rgba(255,255,255,0.4)');
-    hiliteGrad.addColorStop(0.5, 'rgba(255,255,255,0.1)');
-    hiliteGrad.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = hiliteGrad;
-    ctx.fill();
-
+    drawWheel(ctx, w, h, rotationRef.current);
     ctx.restore();
-
-    if (isSpinning) {
-      ctx.save();
-      ctx.rotate(arrowWorldAngle);
-      ctx.beginPath();
-      ctx.arc(0, -(arrowOuterRadius + 2), arrowWidth * 0.5, 0, Math.PI * 2);
-      const motionBlurGrad = ctx.createRadialGradient(0, -(arrowOuterRadius + 2), 0, 0, -(arrowOuterRadius + 2), arrowWidth * 0.5);
-      motionBlurGrad.addColorStop(0, `rgba(${GOLD_RGB},0.15)`);
-      motionBlurGrad.addColorStop(1, `rgba(${GOLD_RGB},0)`);
-      ctx.fillStyle = motionBlurGrad;
-      ctx.fill();
-      ctx.restore();
-    }
-
-    ctx.restore();
-
-    animateParticles(ctx, w, h);
-    ctx.restore();
-  }, [canvasDims, drawWheel, animateParticles]);
+  }, [drawWheel]);
 
   useEffect(() => {
     if (wheelGames.length === 0) return;
-    imageCacheRef.current.clear();
-    wheelGames.forEach((g) => {
-      loadImage(getCoverUrl(g));
-    });
-  }, [wheelGames, getCoverUrl, loadImage]);
-
-  useEffect(() => {
-    if (canvasDims.w <= 0 || wheelGames.length === 0) return;
-
-    const FRICTION = 0.985;
-    const MIN_VELOCITY = 0.0008;
-    const IDLE_SPEED = 0.008;
-    const ARROW_SPRING_STIFF = 0.55;
-    const ARROW_SPRING_DAMP = 0.7;
-
-    const pinHitSound = () => {
-      try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.frequency.setValueAtTime(1200 + Math.random() * 800, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.05);
-        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.08);
-      } catch {}
-    };
 
     const loop = () => {
       const vel = velocityRef.current;
-      const n = wheelGames.length;
-      const segAngle = segAngleRef.current;
-      const TOP = -Math.PI / 2;
-
-      if (!spinningRef.current && Math.abs(vel) < IDLE_SPEED * 2) {
-        velocityRef.current = IDLE_SPEED;
-      }
-
-      if (pinHitCooldownRef.current > 0) {
-        pinHitCooldownRef.current -= 1;
-      }
-
-      if (Math.abs(arrowVelocityRef.current) > 0.001 || Math.abs(arrowAngleRef.current) > 0.01) {
-        arrowVelocityRef.current *= ARROW_SPRING_DAMP;
-        arrowAngleRef.current += arrowVelocityRef.current;
-        arrowAngleRef.current *= ARROW_SPRING_STIFF;
-        if (Math.abs(arrowAngleRef.current) < 0.001 && Math.abs(arrowVelocityRef.current) < 0.001) {
-          arrowAngleRef.current = 0;
-          arrowVelocityRef.current = 0;
-        }
-      }
-
-      if (arrowGlowRef.current > 0) {
-        arrowGlowRef.current *= 0.9;
-        if (arrowGlowRef.current < 0.01) arrowGlowRef.current = 0;
-      }
 
       if (Math.abs(vel) > 0.0001) {
-        rotationRef.current += vel;
-
-        const pinAngles: number[] = [];
-        for (let i = 0; i < n; i++) {
-          const worldAngle = TOP + i * segAngle + rotationRef.current;
-          pinAngles.push(((worldAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI));
-        }
-
-        if (prevPinAnglesRef.current.length === n && pinHitCooldownRef.current <= 0) {
-          const arrowNorm = 3 * Math.PI / 2;
-          for (let i = 0; i < n; i++) {
-            if (i === lastHitIndexRef.current) continue;
-            const prev = prevPinAnglesRef.current[i];
-            const curr = pinAngles[i];
-            const crossedArrow = prev < arrowNorm && curr >= arrowNorm;
-            if (crossedArrow) {
-              lastHitIndexRef.current = i;
-              pinHitCooldownRef.current = 8;
-              const speedFactor = Math.min(1, Math.abs(vel) / 0.3);
-              const kick = (Math.random() * 0.5 + 0.5) * ARROW_KICK_STRENGTH * speedFactor;
-              arrowVelocityRef.current = -kick;
-              arrowAngleRef.current += kick * 0.3;
-              arrowGlowRef.current = 0.8;
-              pinHitSound();
-              break;
-            }
-          }
-        }
-        prevPinAnglesRef.current = pinAngles;
+        rotationRef.current -= vel;
 
         if (spinningRef.current) {
           velocityRef.current *= FRICTION;
@@ -760,34 +337,22 @@ export default function SpinWheel() {
             spinningRef.current = false;
             setSpinning(false);
 
-            const norm = ((-rotationRef.current % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-            const winnerIndex = Math.floor(norm / segAngle) % n;
+            const POINTER_ANGLE = -Math.PI / 2;
+            const wheelAngle = ((POINTER_ANGLE - rotationRef.current) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+            const segAngle = ARC / wheelGames.length;
+            const offsetFromStart = ((wheelAngle - ARC_START) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+            const winnerIndex = Math.min(Math.floor(offsetFromStart / segAngle), wheelGames.length - 1);
             const selectedWinner = wheelGames[winnerIndex];
-            winnerRef.current = selectedWinner;
             setWinner(selectedWinner);
-
-            renderPulseRef.current = true;
-            pulsePhaseRef.current = 0;
-
-            const cxc = wheelCenterRef.current.x;
-            particlesRef.current = spawnParticles(cxc, 4);
 
             setTimeout(() => {
               setShowResult(true);
-            }, 600);
+            }, 500);
           }
         }
-      } else {
-        prevPinAnglesRef.current = [];
-        lastHitIndexRef.current = -1;
-        pinHitCooldownRef.current = 0;
       }
 
-      if (renderPulseRef.current) {
-        pulsePhaseRef.current += 0.05;
-      }
-
-      renderFrame(rotationRef.current);
+      renderFrame();
       animFrameRef.current = requestAnimationFrame(loop);
     };
 
@@ -795,30 +360,36 @@ export default function SpinWheel() {
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [canvasDims, wheelGames, renderFrame, spawnParticles]);
+  }, [wheelGames, renderFrame]);
+
+  const handleResize = useCallback(() => {
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
+    const rect = container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    dimsRef.current = { w: rect.width, h: rect.height };
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+  }, []);
 
   useEffect(() => {
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    };
-  }, []);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [handleResize]);
 
   const handleSpin = useCallback(() => {
     if (spinningRef.current || wheelGames.length === 0) return;
     setWinner(null);
     setShowResult(false);
-    renderPulseRef.current = false;
-    particlesRef.current = [];
-    winnerRef.current = null;
-    arrowAngleRef.current = 0;
-    arrowVelocityRef.current = 0;
-    prevPinAnglesRef.current = [];
-    lastHitIndexRef.current = -1;
-    pinHitCooldownRef.current = 0;
-    arrowGlowRef.current = 0;
 
-    const minSpeed = 0.25;
-    const maxSpeed = 0.5;
+    const minSpeed = 0.3;
+    const maxSpeed = 0.6;
     const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
     velocityRef.current = speed;
     spinningRef.current = true;
@@ -827,24 +398,9 @@ export default function SpinWheel() {
 
   const handleSpinAgain = useCallback(() => {
     if (games.length > 0) {
-      const picked = pickEligibleGames(games);
-      setWheelGames(picked);
-      imageCacheRef.current.clear();
-      picked.forEach((g) => loadImage(getCoverUrl(g)));
+      loadWheelGames(games, poolFilter);
     }
-    rotationRef.current = 0;
-    velocityRef.current = 0;
-    setWinner(null);
-    setShowResult(false);
-    renderPulseRef.current = false;
-    particlesRef.current = [];
-    arrowAngleRef.current = 0;
-    arrowVelocityRef.current = 0;
-    prevPinAnglesRef.current = [];
-    lastHitIndexRef.current = -1;
-    pinHitCooldownRef.current = 0;
-    arrowGlowRef.current = 0;
-  }, [games, getCoverUrl, loadImage]);
+  }, [games, poolFilter, loadWheelGames]);
 
   if (loading && games.length === 0) {
     return (
@@ -855,109 +411,135 @@ export default function SpinWheel() {
   }
 
   return (
-    <div className="relative w-full h-screen overflow-hidden" ref={containerRef}>
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 block"
-      />
+    <div className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-gray-900 to-black" ref={containerRef}>
+      <canvas ref={canvasRef} className="absolute inset-0 block" />
 
       <div className="absolute top-4 left-4 md:top-6 md:left-6 z-10">
         <h1 className="text-fluid-lg md:text-2xl font-bold text-gradient-gold">Spin Wheel</h1>
       </div>
 
       <div className="absolute top-4 right-4 md:top-6 md:right-6 z-10 flex items-center gap-3">
-        <div className="px-3 py-1.5 rounded-xl bg-surface-900/60 backdrop-blur-md border border-white/5">
+        <select
+          value={poolFilter}
+          onChange={(e) => setPoolFilter(e.target.value)}
+          className="input text-[10px] md:text-xs py-1.5 pr-6 md:pr-8"
+        >
+          {POOL_FILTER_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        <div className="px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10">
           <span className="text-[10px] md:text-xs font-medium text-gray-400">
             {wheelGames.length} games loaded
           </span>
         </div>
-        <button
+        <motion.button
           onClick={handleSpinAgain}
           disabled={spinning}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-900/60 backdrop-blur-md border border-white/5 text-gray-400 hover:text-white hover:bg-surface-700/60 text-[10px] md:text-xs font-medium transition-all disabled:opacity-40"
+          whileTap={{ scale: 0.95 }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-gray-400 hover:text-white text-[10px] md:text-xs font-medium transition-all disabled:opacity-40"
         >
-          <RefreshIcon />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 md:w-4 h-3.5 md:h-4">
+            <path d="M1 4v6h6M23 20v-6h-6" />
+            <path d="M20.49 9A9 9 0 005.64 5.64L1 10M22.54 14.01l-4.64 4.35a9 9 0 01-14.85-3.36" />
+          </svg>
           Respin Pool
-        </button>
+        </motion.button>
       </div>
 
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-3">
-        <button
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-3">
+        <motion.button
           onClick={handleSpin}
           disabled={spinning || wheelGames.length === 0}
-          className="group relative inline-flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-gradient-to-b from-gold-500 to-yellow-600 hover:from-gold-400 hover:to-yellow-500 text-black font-black text-sm md:text-base tracking-wider uppercase transition-all duration-300 hover:shadow-[0_0_40px_rgba(250,204,21,0.25)] active:scale-[0.96] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="group relative inline-flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-gradient-to-b from-gold-500 to-yellow-600 hover:from-gold-400 hover:to-yellow-500 text-black font-black text-sm md:text-base tracking-wider uppercase transition-all duration-300 active:scale-[0.96] disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          <SpinIcon />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 md:w-5 h-4 md:h-5">
+            <path d="M12 2a10 10 0 0110 10M12 2v4M12 2l3 3M12 22A10 10 0 012 12M12 22v-4M12 22l-3-3M20 12h4M4 12H2M20 12l3-3M4 12l-2-3M17 7l3-3M7 17l-3 3" />
+          </svg>
           {spinning ? 'Spinning\u2026' : 'SPIN!'}
-          <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-gold-500/0 via-gold-500/20 to-gold-500/0 opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500" />
-        </button>
+        </motion.button>
         {spinning && (
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-surface-900/60 backdrop-blur-md border border-gold-500/10">
+          <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-gold-500/20">
             <div className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse" />
             <span className="text-[10px] text-gold-400 font-medium tracking-wider uppercase">Spinning\u2026</span>
           </div>
         )}
       </div>
 
-      {showResult && winner && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="relative w-full max-w-md mx-4 bg-surface-900 border border-gold-500/20 rounded-2xl p-6 md:p-8 shadow-[0_0_60px_rgba(250,204,21,0.12)]">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-gold-600 to-yellow-500 rounded-full text-black text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-lg">
-              Selected!
-            </div>
-
-            <div className="flex flex-col items-center gap-3 md:gap-4 mt-2">
-              <div className="w-20 md:w-28 h-24 md:h-32 rounded-xl overflow-hidden ring-2 ring-gold-500/30">
-                <img
-                  src={getCoverUrl(winner)}
-                  alt={winner.title}
-                  className="w-full h-full object-cover"
-                />
+      <AnimatePresence>
+        {showResult && winner && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-md mx-4 bg-gray-900 border border-gold-500/20 rounded-2xl p-6 md:p-8 shadow-[0_0_60px_rgba(250,204,21,0.12)]"
+            >
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-gold-600 to-yellow-500 rounded-full text-black text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-lg">
+                Selected!
               </div>
 
-              <h2 className="text-fluid-lg md:text-2xl font-bold text-white text-center">{winner.title}</h2>
+              <div className="flex flex-col items-center gap-3 md:gap-4 mt-2">
+                <div className="w-20 md:w-28 h-24 md:h-32 rounded-xl overflow-hidden ring-2 ring-gold-500/30">
+                  <img
+                    src={winner.coverArt || `https://ui-avatars.com/api/?name=${encodeURIComponent(winner.title)}&background=1a1f2e&color=facc15&size=128`}
+                    alt={winner.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-400">
-                <span className="px-2 py-0.5 rounded-md bg-surface-800 border border-white/[0.04]">
-                  {Math.round(winner.hoursPlayed)}h played
-                </span>
-                {winner.genre && (
-                  <span className="px-2 py-0.5 rounded-md bg-surface-800 border border-white/[0.04]">
-                    {winner.genre}
+                <h2 className="text-fluid-lg md:text-2xl font-bold text-white text-center">{winner.title}</h2>
+
+                <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-400">
+                  <span className="px-2 py-0.5 rounded-md bg-gray-800 border border-white/10">
+                    {Math.round(winner.hoursPlayed)}h played
                   </span>
-                )}
-                {winner.status && (
-                  <span className="px-2 py-0.5 rounded-md bg-surface-800 border border-white/[0.04] capitalize">
-                    {winner.status.toLowerCase()}
-                  </span>
-                )}
-              </div>
+                  {winner.genre && (
+                    <span className="px-2 py-0.5 rounded-md bg-gray-800 border border-white/10">
+                      {winner.genre}
+                    </span>
+                  )}
+                  {winner.status && (
+                    <span className="px-2 py-0.5 rounded-md bg-gray-800 border border-white/10 capitalize">
+                      {winner.status.toLowerCase()}
+                    </span>
+                  )}
+                </div>
 
-              <div className="flex items-center gap-2 md:gap-3 mt-1 w-full">
-                <button
-                  onClick={() => navigate(`/game/${winner.id}`)}
-                  className="flex-1 py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-gold-600 to-gold-500 hover:from-gold-500 hover:to-gold-400 text-black font-semibold text-[11px] md:text-sm transition-all duration-300 hover:shadow-[0_0_20px_rgba(250,204,21,0.3)] active:scale-[0.97]"
-                >
-                  View Details
-                </button>
-                <button
-                  onClick={() => {
-                    handleSpinAgain();
-                    setShowResult(false);
-                  }}
-                  className="flex-1 py-2.5 md:py-3 rounded-xl bg-surface-800 hover:bg-surface-700 text-gray-300 hover:text-white font-semibold text-[11px] md:text-sm transition-all duration-200 active:scale-[0.97] border border-white/[0.06]"
-                >
-                  Spin Again
-                </button>
+                <div className="flex items-center gap-2 md:gap-3 mt-1 w-full">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate(`/game/${winner.id}`)}
+                    className="flex-1 py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-gold-600 to-gold-500 hover:from-gold-500 hover:to-gold-400 text-black font-semibold text-[11px] md:text-sm transition-all active:scale-[0.97]"
+                  >
+                    View Details
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => { handleSpinAgain(); setShowResult(false); }}
+                    className="flex-1 py-2.5 md:py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white font-semibold text-[11px] md:text-sm transition-all active:scale-[0.97] border border-white/10"
+                  >
+                    Spin Again
+                  </motion.button>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {wheelGames.length === 0 && !loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-          <div className="w-14 h-14 rounded-2xl bg-surface-800/60 border border-white/[0.04] flex items-center justify-center mb-4">
+          <div className="w-14 h-14 rounded-2xl bg-gray-800/60 border border-white/10 flex items-center justify-center mb-4">
             <svg viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="1.5" className="w-7 h-7">
               <path d="M12 2a10 10 0 0110 10M12 2v4M12 2l3 3M12 22A10 10 0 012 12M12 22v-4M12 22l-3-3M20 12h4M4 12H2M20 12l3-3M4 12l-2-3M17 7l3-3M7 17l-3 3" />
             </svg>
