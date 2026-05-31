@@ -10,7 +10,7 @@ import { createTray } from './tray';
 import { setupMenu } from './menu';
 import { setupUpdater } from './updater';
 import { initDatabase, getDatabase } from './database';
-import { syncSteamLibrary } from './steam-auth';
+import { getSteamApiKey, syncSteamLibrary } from './steam-auth';
 
 if (process.platform === 'win32') {
   app.commandLine.appendSwitch('disable-disk-cache');
@@ -18,13 +18,12 @@ if (process.platform === 'win32') {
   app.setPath('cache', path.join(os.tmpdir(), 'backly-cache'));
 }
 
-const steamKey = process.env.STEAM_API_KEY;
-if (!steamKey) {
-  console.warn('WARNING: STEAM_API_KEY is not set in .env');
-} else if (steamKey === 'YOUR_KEY_HERE') {
-  console.warn('WARNING: STEAM_API_KEY is set to the placeholder value "YOUR_KEY_HERE". Get a real key from https://steamcommunity.com/dev/apikey');
+const envKey = process.env.STEAM_API_KEY;
+if (envKey && envKey !== 'YOUR_KEY_HERE') {
+  console.log('Steam API key found in .env');
+} else {
+  console.log('Steam API key will be read from Settings if configured');
 }
-console.log('Steam key loaded:', !!steamKey);
 
 const isDev = !app.isPackaged;
 

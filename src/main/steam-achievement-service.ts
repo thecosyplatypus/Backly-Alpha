@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getDatabase } from './database';
+import { getSteamApiKey } from './steam-auth';
 import { settingsStore } from './settings';
 
 interface AchievementData {
@@ -67,7 +68,7 @@ export class SteamAchievementService {
   }
 
   private getApiKey(): string | null {
-    return settingsStore.get('steamApiKey') || process.env.STEAM_API_KEY || null;
+    return getSteamApiKey() || null;
   }
 
   private async getSchema(appId: string, retries = 3): Promise<any> {

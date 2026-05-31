@@ -2,7 +2,7 @@ import { getDatabase } from './database';
 import { GameStatus, ActivityType } from '../shared/types';
 import { Prisma } from '@prisma/client';
 import { createActivity } from './activity-service';
-import { fetchSteamAchievements, fetchSteamGlobalAchievementPercentages, fetchSteamAchievementSchema } from './steam-auth';
+import { getSteamApiKey, fetchSteamAchievements, fetchSteamGlobalAchievementPercentages, fetchSteamAchievementSchema } from './steam-auth';
 import { settingsStore } from './settings';
 
 export async function getGames(params?: {
@@ -522,7 +522,7 @@ export async function syncSteamAchievements(
     return { success: false, message: 'No Steam account linked', synced: 0, total: 0 };
   }
 
-  const apiKey = settingsStore.get('steamApiKey') || process.env.STEAM_API_KEY;
+  const apiKey = getSteamApiKey();
   if (!apiKey) {
     return { success: false, message: 'Steam API key not configured. Set it in Settings > Steam Integration.', synced: 0, total: 0 };
   }

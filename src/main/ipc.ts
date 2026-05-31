@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import { getDatabase, initDatabase } from './database';
-import { steamAuth, syncSteamLibrary } from './steam-auth';
+import { getSteamApiKey, steamAuth, syncSteamLibrary } from './steam-auth';
 import {
   getDashboardStats,
   getGameById,
@@ -211,8 +211,7 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
       if (!profile?.steamId) {
         return { success: false, message: 'No Steam account linked', imported: 0, skipped: 0, failed: 0, total: 0, achievements: [] };
       }
-      const { settingsStore } = await import('./settings');
-      const apiKey = settingsStore.get('steamApiKey') || process.env.STEAM_API_KEY;
+      const apiKey = getSteamApiKey();
       if (!apiKey) {
         return { success: false, message: 'Steam API key not configured in settings', imported: 0, skipped: 0, failed: 0, total: 0, achievements: [] };
       }

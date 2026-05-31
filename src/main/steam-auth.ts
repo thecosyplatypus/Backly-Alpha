@@ -6,9 +6,10 @@ import { createActivity } from './activity-service';
 
 const STEAM_LOGIN_URL = 'https://steamcommunity.com/openid/login';
 
-function getSteamApiKey(): string {
+export function getSteamApiKey(): string {
   const { settingsStore } = require('./settings');
-  return settingsStore.get('steamApiKey') || process.env.STEAM_API_KEY || '';
+  const key = settingsStore.get('steamApiKey') || process.env.STEAM_API_KEY || '';
+  return key && key !== 'YOUR_KEY_HERE' ? key : '';
 }
 
 function getBaseUrl(): string {
