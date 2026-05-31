@@ -4,6 +4,7 @@ dotenv.config();
 
 import { app, BrowserWindow, shell } from 'electron';
 import path from 'path';
+import os from 'os';
 import { setupIPC } from './ipc';
 import { createTray } from './tray';
 import { setupMenu } from './menu';
@@ -13,6 +14,8 @@ import { syncSteamLibrary } from './steam-auth';
 
 if (process.platform === 'win32') {
   app.commandLine.appendSwitch('disable-disk-cache');
+  app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+  app.setPath('cache', path.join(os.tmpdir(), 'backly-cache'));
 }
 
 const steamKey = process.env.STEAM_API_KEY;
