@@ -179,9 +179,11 @@ function relativeTime(dateStr: string): string {
 }
 
 export default function ProfilePanel() {
-  const { steamStatus } = useSettingsStore();
-  const { stats } = useGameStore();
-  const { activities, loading, fetchActivities } = useActivityStore();
+  const steamStatus = useSettingsStore(s => s.steamStatus);
+  const stats = useGameStore(s => s.stats);
+  const activities = useActivityStore(s => s.activities);
+  const loading = useActivityStore(s => s.loading);
+  const fetchActivities = useActivityStore(s => s.fetchActivities);
   const isConnected = steamStatus?.isConnected;
   const username = steamStatus?.username || 'Player';
   const avatar = steamStatus?.avatar;
@@ -238,7 +240,7 @@ export default function ProfilePanel() {
   );
 
   return (
-    <aside className="w-[270px] flex-shrink-0 bg-surface-950/80 backdrop-blur-xl border-l border-white/[0.04] flex flex-col overflow-y-auto py-5 px-4 gap-4 resize-transition">
+    <aside className="w-[270px] flex-shrink-0 bg-surface-950/80 backdrop-blur-sm border-l border-white/[0.04] flex flex-col overflow-y-auto py-5 px-4 gap-4 resize-transition">
       {/* Profile card */}
       <div className="glass-strong rounded-2xl border border-white/[0.05] p-5">
         <div className="flex flex-col items-center">
@@ -246,7 +248,7 @@ export default function ProfilePanel() {
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold-500 to-yellow-400 p-[2px]">
               <div className="w-full h-full rounded-2xl bg-surface-900 flex items-center justify-center overflow-hidden">
                 {avatar ? (
-                  <img src={avatar} alt="" className="w-full h-full object-cover" />
+                  <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <span className="text-2xl font-bold text-gold-400">?</span>
                 )}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BacklogHealth as BacklogHealthType } from '../../../shared/types';
 
 const RATING_CONFIG = {
@@ -37,16 +37,17 @@ export default function BacklogHealth() {
   const [health, setHealth] = useState<BacklogHealthType | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const mountedRef = useRef(true);
+
   useEffect(() => {
     (async () => {
       try {
         const result = await window.backly.getBacklogHealth();
-        setHealth(result);
-      } catch {
-        // ignore
-      }
-      setLoading(false);
+        if (mountedRef.current) setHealth(result);
+      } catch {}
+      if (mountedRef.current) setLoading(false);
     })();
+    return () => { mountedRef.current = false; };
   }, []);
 
   if (loading) {

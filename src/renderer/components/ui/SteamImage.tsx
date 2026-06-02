@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 
+const CDN_FORMATS = ['header.jpg', 'capsule_616x353.jpg', 'library_600x900.jpg', 'library_hero.jpg'];
+
 interface Props {
   appid?: string | number | null
   src?: string | null
@@ -23,19 +25,39 @@ function Placeholder({ alt, className }: { alt: string; className?: string }) {
   )
 }
 
-export default function SteamImage({ src, alt, className = '', fallback }: Props) {
-  const [failed, setFailed] = useState(false)
+export default function SteamImage({ src, appid: propAppid, alt, className = '', fallback }: Props) {
+  const [failedCount, setFailedCount] = useState(0);
 
-  if (!src || failed) {
-    return <Placeholder alt={alt} className={className} />
+  if (!src) {
+    if (fallback) return <img src={fallback} alt={alt} className={className} loading="lazy" />;
+    return <Placeholder alt={alt} className={className} />;
   }
+
+  const appid = propAppid || (typeof src === 'string' ? src.match(/\/steam\/apps\/(\d+)\//)?.[1] : null);
+  const origFormat = CDN_FORMATS.find(f => src.includes(f));
+  const altFormats = origFormat ? CDN_FORMATS.filter(f => f !== origFormat) : CDN_FORMATS;
+
+  let imageSrc = src;
+  if (failedCount > 0 && appid) {
+    if (failedCount <= altFormats.length) {
+      imageSrc = `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/${altFormats[failedCount - 1]}`;
+    } else {
+      if (fallback) return <img src={fallback} alt={alt} className={className} loading="lazy" />;
+      return <Placeholder alt={alt} className={className} />;
+    }
+  }
+
+  const handleError = () => {
+    console.warn('[SteamImage] Failed:', imageSrc, `(attempt ${failedCount + 1}/${CDN_FORMATS.length})`);
+    setFailedCount(c => c + 1);
+  };
 
   return (
     <img
-      src={src}
+      src={imageSrc}
       alt={alt}
       className={className}
-      onError={() => setFailed(true)}
+      onError={handleError}
       loading="lazy"
     />
   )

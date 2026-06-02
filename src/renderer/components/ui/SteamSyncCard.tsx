@@ -253,11 +253,16 @@ function getStateMessage(state: SyncState, currentGame: string): string {
 }
 
 export default function SteamSyncCard() {
-  const {
-    steamStatus, syncing, loading, syncProgress, lastSyncResult,
-    steamSync, steamLogin, steamDisconnect, clearSyncResult,
-    loadSteamStatus,
-  } = useSettingsStore();
+  const steamStatus = useSettingsStore(s => s.steamStatus);
+  const syncing = useSettingsStore(s => s.syncing);
+  const loading = useSettingsStore(s => s.loading);
+  const syncProgress = useSettingsStore(s => s.syncProgress);
+  const lastSyncResult = useSettingsStore(s => s.lastSyncResult);
+  const steamSync = useSettingsStore(s => s.steamSync);
+  const steamLogin = useSettingsStore(s => s.steamLogin);
+  const steamDisconnect = useSettingsStore(s => s.steamDisconnect);
+  const clearSyncResult = useSettingsStore(s => s.clearSyncResult);
+  const loadSteamStatus = useSettingsStore(s => s.loadSteamStatus);
 
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [metrics, setMetrics] = useState<SyncMetrics>({
@@ -702,6 +707,7 @@ export default function SteamSyncCard() {
                         src={steamStatus.avatar}
                         alt=""
                         className="w-full h-full object-cover"
+                        loading="lazy"
                         onError={() => setAvatarError(true)}
                       />
                     ) : (

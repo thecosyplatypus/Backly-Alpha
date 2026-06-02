@@ -22,9 +22,6 @@ export default function HeroPanel({ game }: Props) {
       <div className="absolute inset-0 bg-gradient-to-br from-gold-500/10 via-surface-900 to-neon-purple/5" />
       <div className="absolute inset-0 bg-gradient-to-t from-surface-950 via-surface-950/60 to-transparent" />
 
-      <div className="absolute top-1/4 left-1/4 w-48 md:w-64 h-48 md:h-64 bg-gold-500/10 rounded-full blur-[80px] md:blur-[100px] animate-breathing" />
-      <div className="absolute bottom-1/4 right-1/4 w-36 md:w-48 h-36 md:h-48 bg-neon-purple/10 rounded-full blur-[60px] md:blur-[80px] animate-float-delayed" />
-
       <div className="relative z-10 p-4 md:p-8 flex flex-col justify-end min-h-[180px] md:min-h-[320px]">
         <div className="max-w-2xl">
           <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-4">

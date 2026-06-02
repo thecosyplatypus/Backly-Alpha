@@ -7,6 +7,8 @@ export enum GameStatus {
   PAUSED = 'PAUSED',
   DROPPED = 'DROPPED',
   WISHLIST = 'WISHLIST',
+  DEMO = 'DEMO',
+  NO_ACHIEVEMENTS = 'NO_ACHIEVEMENTS',
 }
 
 export interface GameData {

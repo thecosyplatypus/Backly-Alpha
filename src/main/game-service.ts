@@ -1,12 +1,12 @@
 import { getDatabase } from './database';
 import { GameStatus, ActivityType } from '../shared/types';
-import { Prisma } from '@prisma/client';
+
 import { createActivity } from './activity-service';
 import { getSteamApiKey, fetchSteamAchievements, fetchSteamGlobalAchievementPercentages, fetchSteamAchievementSchema } from './steam-auth';
 import { settingsStore } from './settings';
 
 export async function getGames(params?: {
-  status?: GameStatus | 'no-achievements';
+  status?: GameStatus | 'no-achievements' | 'playing-or-recent' | 'demos';
   genre?: string;
   platform?: string;
   search?: string;
@@ -30,6 +30,42 @@ export async function getGames(params?: {
         { totalAchievements: 0 },
       ],
     });
+  } else if (params?.status === 'demos') {
+    andConditions.push({
+      OR: [
+        { title: { contains: ' Demo' } },
+        { title: { contains: ' Playtest' } },
+        { title: { contains: ' Prologue' } },
+        { title: 'Demo' },
+        { title: 'Playtest' },
+        { title: 'Prologue' },
+      ],
+    });
+  } else if (params?.status === 'playing-or-recent') {
+    const allProfileGames = await db.game.findMany({
+      where: { profileId: profile.id },
+      select: { id: true, status: true, steamData: true },
+    });
+    const matchedIds = new Set<string>();
+    for (const g of allProfileGames) {
+      if (g.status === GameStatus.PLAYING) {
+        matchedIds.add(g.id);
+        continue;
+      }
+      if (g.steamData) {
+        try {
+          const sd = JSON.parse(g.steamData);
+          if ((sd.playtime_2weeks || 0) > 0) {
+            matchedIds.add(g.id);
+          }
+        } catch {}
+      }
+    }
+    if (matchedIds.size > 0) {
+      where.id = { in: Array.from(matchedIds) };
+    } else {
+      where.id = { in: [] };
+    }
   } else if (params?.status) {
     where.status = params.status;
   }
@@ -68,6 +104,12 @@ export async function getGames(params?: {
       orderBy,
       take: params?.limit || 100,
       skip: params?.offset || 0,
+      select: { id: true, title: true, slug: true, status: true, genre: true,
+        platform: true, hoursPlayed: true, userRating: true, isFavourite: true,
+        coverArt: true, banner: true, steamAppId: true, steamData: true,
+        totalAchievements: true, unlockedAchievements: true, completionPercentage: true,
+        developer: true, publisher: true, completionDate: true,
+        tags: true, lastPlayed: true, notes: true, createdAt: true, updatedAt: true },
     }),
     db.game.count({ where }),
   ]);
@@ -116,15 +158,15 @@ export async function updateGame(id: string, data: any) {
   }
 
   if (data.status && data.status !== game.status) {
+    const prevStatus = game.status;
+    let newStatus = data.status;
     if (game.hoursPlayed === 0 && data.status !== GameStatus.BACKLOG && data.status !== GameStatus.WISHLIST) {
       data.status = GameStatus.STARTED;
+      newStatus = GameStatus.STARTED;
     }
 
-    const prevStatus = game.status;
-    const newStatus = data.status;
-
-      if (newStatus === GameStatus.COMPLETED && prevStatus !== GameStatus.COMPLETED) {
-        await createActivity('game_completed', {
+    if (newStatus === GameStatus.COMPLETED && prevStatus !== GameStatus.COMPLETED) {
+      await createActivity('game_completed', {
         gameId: game.id,
         gameTitle: game.title,
       });
@@ -202,7 +244,10 @@ export async function getDashboardStats() {
     };
   }
 
-  const allGames = await db.game.findMany({ where: { profileId: profile.id } });
+  const allGames = await db.game.findMany({
+    where: { profileId: profile.id },
+    select: { status: true, genre: true, hoursPlayed: true, completionDate: true, isFavourite: true },
+  });
 
   const now = new Date();
   const yearStart = new Date(now.getFullYear(), 0, 1);
@@ -212,14 +257,20 @@ export async function getDashboardStats() {
   const wishlistGames = allGames.filter(g => g.status === GameStatus.WISHLIST);
 
   const genreCounts: Record<string, number> = {};
+  const genreHours: Record<string, number> = {};
   for (const g of allGames) {
     if (g.genre) {
       genreCounts[g.genre] = (genreCounts[g.genre] || 0) + 1;
+      genreHours[g.genre] = (genreHours[g.genre] || 0) + (g.hoursPlayed || 0);
     }
   }
   const mostPlayedGenre = Object.entries(genreCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+  const genreBreakdown = Object.entries(genreHours)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([genre, hours]) => ({ genre, hours: Math.round(hours) }));
 
-  const totalBacklogEstimate = 0;
+  const totalBacklogEstimate = Math.round(backlogGames.length * 15);
   const avgCompletionTime = completedGames.length > 0
     ? Math.round(completedGames.reduce((sum, g) => sum + (g.hoursPlayed || 0), 0) / completedGames.length)
     : 0;
@@ -237,6 +288,7 @@ export async function getDashboardStats() {
       return d >= yearStart;
     }).length,
     mostPlayedGenre,
+    genreBreakdown,
     avgCompletionTime,
     isSteamSynced: !!profile.steamId,
     totalBacklogEstimate: totalBacklogEstimate,
@@ -253,7 +305,14 @@ export async function getBacklogInsights() {
   const profile = await db.profile.findFirst();
   if (!profile) return [];
 
-  const games = await db.game.findMany({ where: { profileId: profile.id } });
+  const games = await db.game.findMany({
+    where: { profileId: profile.id },
+    select: { id: true, title: true, status: true, hoursPlayed: true, lastPlayed: true, createdAt: true,
+      genre: true, platform: true, userRating: true, isFavourite: true, slug: true,
+      steamData: true, totalAchievements: true, unlockedAchievements: true,
+      completionPercentage: true, developer: true, publisher: true,
+      completionDate: true, tags: true, updatedAt: true },
+  });
 
   const insights: any[] = [];
   const now = new Date();
@@ -284,6 +343,11 @@ export async function getRecommendations(type?: string) {
 
   const games = await db.game.findMany({
     where: { profileId: profile.id, NOT: { status: GameStatus.COMPLETED } },
+    select: { id: true, title: true, status: true, hoursPlayed: true, userRating: true,
+      genre: true, platform: true, isFavourite: true, slug: true,
+      steamData: true, totalAchievements: true, unlockedAchievements: true,
+      completionPercentage: true, developer: true, publisher: true,
+      completionDate: true, tags: true, lastPlayed: true, createdAt: true, updatedAt: true },
   });
 
   const recommendations: any[] = [];
@@ -322,7 +386,10 @@ export async function getBacklogHealth() {
   const profile = await db.profile.findFirst();
   if (!profile) return null;
 
-  const allGames = await db.game.findMany({ where: { profileId: profile.id } });
+  const allGames = await db.game.findMany({
+    where: { profileId: profile.id },
+    select: { status: true, hoursPlayed: true },
+  });
   const total = allGames.length;
   if (total === 0) {
     return {
@@ -408,6 +475,11 @@ export async function getCloseToCompletion() {
       NOT: { status: GameStatus.COMPLETED },
       hoursPlayed: { gt: 0 },
     },
+    select: { id: true, title: true, status: true, hoursPlayed: true,
+      genre: true, platform: true, isFavourite: true, slug: true,
+      steamData: true, totalAchievements: true, unlockedAchievements: true,
+      completionPercentage: true, developer: true, publisher: true,
+      completionDate: true, tags: true, lastPlayed: true, createdAt: true, updatedAt: true },
   });
 
   return games
@@ -430,6 +502,11 @@ export async function getShortSessionGames() {
       profileId: profile.id,
       NOT: { status: GameStatus.COMPLETED },
     },
+    select: { id: true, title: true, status: true, genre: true, hoursPlayed: true,
+      platform: true, isFavourite: true, slug: true,
+      steamData: true, totalAchievements: true, unlockedAchievements: true,
+      completionPercentage: true, developer: true, publisher: true,
+      completionDate: true, tags: true, lastPlayed: true, createdAt: true, updatedAt: true },
   });
 
   const categories = [
@@ -489,24 +566,27 @@ export async function getAllAchievements() {
     select: { id: true, title: true, steamAppId: true },
   });
 
-  const allAchievements: any[] = [];
-  for (const game of games) {
-    const gameAchievements = await db.achievement.findMany({ where: { gameId: game.id } });
-    for (const a of gameAchievements) {
-      allAchievements.push({
-        id: a.id,
-        name: a.name,
-        description: a.description || '',
-        iconUrl: a.iconUrl,
-        unlocked: a.unlocked,
-        unlockedAt: a.unlockedAt,
-        gameId: game.id,
-        gameTitle: game.title,
-      });
-    }
-  }
+  if (games.length === 0) return [];
 
-  return allAchievements.sort((a, b) => {
+  const gameIds = games.map(g => g.id);
+  const gameTitles = new Map(games.map(g => [g.id, g.title]));
+
+  const allAchievements = await db.achievement.findMany({
+    where: { gameId: { in: gameIds } },
+  });
+
+  const result = allAchievements.map(a => ({
+    id: a.id,
+    name: a.name,
+    description: a.description || '',
+    iconUrl: a.iconUrl,
+    unlocked: a.unlocked,
+    unlockedAt: a.unlockedAt,
+    gameId: a.gameId,
+    gameTitle: gameTitles.get(a.gameId) || 'Unknown',
+  }));
+
+  return result.sort((a, b) => {
     if (a.unlocked && !b.unlocked) return -1;
     if (!a.unlocked && b.unlocked) return 1;
     return 0;
@@ -641,5 +721,90 @@ export async function syncSteamAchievements(
     synced,
     total: games.length,
     failed,
+  };
+}
+
+export async function getWeeklyActivity() {
+  const db = getDatabase();
+  const profile = await db.profile.findFirst();
+  if (!profile) {
+    return {
+      totalHours: 0, gamesPlayed: 0, completionPercentage: 0,
+      weeklyChange: 0, dailyHours: {}, gameTitles: [],
+    };
+  }
+
+  const games = await db.game.findMany({
+    where: { profileId: profile.id },
+    select: { steamData: true, hoursPlayed: true, title: true },
+  });
+
+  let totalHours2Weeks = 0;
+  let gamesPlayed2Weeks = 0;
+  const gameTitles: string[] = [];
+
+  for (const game of games) {
+    if (game.steamData) {
+      try {
+        const steamData = JSON.parse(game.steamData);
+        const pt2w = steamData.playtime_2weeks || 0;
+        if (pt2w > 0) {
+          totalHours2Weeks += pt2w / 60;
+          gamesPlayed2Weeks++;
+          gameTitles.push(game.title);
+        }
+      } catch {}
+    }
+  }
+
+  if (gamesPlayed2Weeks === 0) {
+    for (const game of games) {
+      if ((game.hoursPlayed || 0) > 0) {
+        totalHours2Weeks += game.hoursPlayed!;
+        gamesPlayed2Weeks++;
+        gameTitles.push(game.title);
+      }
+    }
+    totalHours2Weeks = Math.min(totalHours2Weeks, games.length * 40);
+  }
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const activities = await db.activity.findMany({
+    where: { profileId: profile.id, createdAt: { gte: sevenDaysAgo } },
+    select: { createdAt: true },
+  });
+
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayActivityCount: Record<string, number> = {};
+  for (const day of dayNames) dayActivityCount[day] = 0;
+
+  for (const activity of activities) {
+    const dayName = dayNames[new Date(activity.createdAt).getDay()];
+    dayActivityCount[dayName]++;
+  }
+
+  const totalActivities = Object.values(dayActivityCount).reduce((a, b) => a + b, 0);
+  const weeklyHours = totalHours2Weeks / 2;
+  const dailyHours: Record<string, { hours: number; games: number }> = {};
+
+  for (const day of dayNames) {
+    const weight = totalActivities > 0 ? dayActivityCount[day] / totalActivities : 1 / 7;
+    dailyHours[day] = {
+      hours: Math.round(weeklyHours * weight * 10) / 10,
+      games: Math.round(gamesPlayed2Weeks * weight),
+    };
+  }
+
+  const completionPercentage = games.length > 0
+    ? Math.round((gamesPlayed2Weeks / games.length) * 100)
+    : 0;
+
+  return {
+    totalHours: Math.round(weeklyHours * 10) / 10,
+    gamesPlayed: gamesPlayed2Weeks,
+    completionPercentage,
+    weeklyChange: 0,
+    dailyHours,
+    gameTitles: gameTitles.slice(0, 10),
   };
 }

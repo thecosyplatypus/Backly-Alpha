@@ -211,19 +211,8 @@ function ToggleSetting({ label, description, checked, onChange }: {
 }
 
 export default function Settings() {
-  const { settings, updateSettings } = useSettingsStore();
-  const [apiKeyInput, setApiKeyInput] = useState('');
-
-  useEffect(() => {
-    if (settings.steamApiKey) {
-      setApiKeyInput(settings.steamApiKey);
-    }
-  }, [settings.steamApiKey]);
-
-  const handleSaveApiKey = async () => {
-    await updateSettings({ ...settings, steamApiKey: apiKeyInput });
-  };
-
+  const settings = useSettingsStore(s => s.settings);
+  const updateSettings = useSettingsStore(s => s.updateSettings);
   const handleExport = async () => {
     const data = await window.backly.exportData('json');
     const blob = new Blob([data], { type: 'application/json' });
@@ -282,39 +271,6 @@ export default function Settings() {
 
         {/* Steam Integration */}
         <SettingsCard icon={<SteamIcon />} title="Steam Integration">
-          <div className="mb-4 md:mb-5">
-            <label className="text-[10px] md:text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5 md:mb-2 block">
-              Steam Web API Key
-            </label>
-            <div className="flex items-center gap-1.5 md:gap-2">
-              <input
-                type="password"
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                placeholder="Enter your Steam API key..."
-                className="input flex-1 text-[11px] md:text-sm py-2 md:py-2.5"
-              />
-              <button
-                onClick={handleSaveApiKey}
-                disabled={!apiKeyInput || apiKeyInput === settings.steamApiKey}
-                className="px-3 md:px-4 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-gold-600 to-gold-500 hover:from-gold-500 hover:to-gold-400 text-black font-semibold text-[11px] md:text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Save
-              </button>
-            </div>
-            <p className="text-[9px] md:text-xs text-gray-600 mt-1 md:mt-1.5">
-              Get your key from{' '}
-              <a
-                href="https://steamcommunity.com/dev/apikey"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gold-500 hover:text-gold-400 underline"
-              >
-                steamcommunity.com/dev/apikey
-              </a>
-            </p>
-          </div>
-
           <SteamSyncCard />
           <button
             onClick={async () => {

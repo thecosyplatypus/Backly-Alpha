@@ -1,28 +1,38 @@
 import React from 'react';
 
-interface Segment {
-  label: string;
-  hours: number;
-  color: string;
-  glow: string;
+interface Props {
+  data?: { genre: string; hours: number }[];
+  totalHours?: number;
 }
 
-const genreData: Segment[] = [
-  { label: 'RPG', hours: 245, color: '#eab308', glow: 'rgba(234,179,8,0.3)' },
-  { label: 'Action', hours: 180, color: '#f97316', glow: 'rgba(249,115,22,0.3)' },
-  { label: 'Adventure', hours: 120, color: '#ffd700', glow: 'rgba(255,215,0,0.3)' },
-  { label: 'Strategy', hours: 85, color: '#f59e0b', glow: 'rgba(245,158,11,0.3)' },
-  { label: 'Simulation', hours: 55, color: '#d97706', glow: 'rgba(217,119,6,0.3)' },
-];
+const GENRE_COLORS: Record<string, { color: string; glow: string }> = {
+  RPG: { color: '#eab308', glow: 'rgba(234,179,8,0.3)' },
+  Action: { color: '#f97316', glow: 'rgba(249,115,22,0.3)' },
+  Adventure: { color: '#ffd700', glow: 'rgba(255,215,0,0.3)' },
+  Strategy: { color: '#f59e0b', glow: 'rgba(245,158,11,0.3)' },
+  Simulation: { color: '#d97706', glow: 'rgba(217,119,6,0.3)' },
+  FPS: { color: '#ef4444', glow: 'rgba(239,68,68,0.3)' },
+  Horror: { color: '#6b21a8', glow: 'rgba(107,33,168,0.3)' },
+  Puzzle: { color: '#06b6d4', glow: 'rgba(6,182,212,0.3)' },
+  Indie: { color: '#a855f7', glow: 'rgba(168,85,247,0.3)' },
+};
 
-export default function PlaytimeRing() {
-  const totalHours = genreData.reduce((sum, s) => sum + s.hours, 0);
+export default function PlaytimeRing({ data: rawData, totalHours: rawTotal }: Props) {
+  const data = rawData?.length ? rawData : [];
+  const totalHours = rawTotal ?? data.reduce((sum, s) => sum + s.hours, 0);
   const size = 140;
   const strokeWidth = 18;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
 
   let cumulativePercent = 0;
+
+  const segments = data.map((d) => {
+    const colors = GENRE_COLORS[d.genre] || { color: '#8b5cf6', glow: 'rgba(139,92,246,0.3)' };
+    return { label: d.genre, hours: d.hours, ...colors };
+  });
+
+  const showEmpty = data.length === 0;
 
   return (
     <div className="card">
@@ -36,7 +46,7 @@ export default function PlaytimeRing() {
       <div className="flex flex-col items-center">
         <div className="relative" style={{ width: size, height: size }}>
           <svg width={size} height={size} className="transform -rotate-90">
-            {genreData.map((segment) => {
+            {segments.map((segment) => {
               const percent = segment.hours / totalHours;
               const offset = circumference * (1 - cumulativePercent);
               cumulativePercent += percent;
@@ -73,7 +83,10 @@ export default function PlaytimeRing() {
         </div>
 
         <div className="w-full mt-3 md:mt-5 space-y-1.5 md:space-y-2">
-          {genreData.map((segment) => {
+          {showEmpty && (
+            <p className="text-[10px] md:text-xs text-gray-500 text-center py-4">No genre data yet</p>
+          )}
+          {segments.map((segment) => {
             const percent = Math.round((segment.hours / totalHours) * 100);
             return (
               <div key={segment.label} className="flex items-center justify-between group">

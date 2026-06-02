@@ -43,7 +43,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     minimizeToTray: true,
     startOnBoot: false,
     language: 'en',
-    steamApiKey: '',
   },
   steamStatus: { isConnected: false, username: null, avatar: null, lastSync: null },
   loading: false,

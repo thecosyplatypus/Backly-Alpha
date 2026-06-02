@@ -11,7 +11,7 @@ export default function SearchBar() {
         <input
           type="text"
           placeholder="Search..."
-          className="w-full bg-surface-800/50 backdrop-blur-xl border border-white/[0.06] rounded-xl md:rounded-2xl pl-9 md:pl-12 pr-3 md:pr-5 py-2.5 md:py-3.5 text-[11px] md:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gold-500/30 focus:shadow-[0_0_20px_rgba(234,179,8,0.08)] transition-all duration-300"
+          className="w-full bg-surface-800/50 backdrop-blur-sm border border-white/[0.06] rounded-xl md:rounded-2xl pl-9 md:pl-12 pr-3 md:pr-5 py-2.5 md:py-3.5 text-[11px] md:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gold-500/30 focus:shadow-[0_0_20px_rgba(234,179,8,0.08)] transition-all duration-300"
         />
         <div className="absolute right-2 md:right-3 flex items-center gap-2">
           <kbd className="hidden sm:inline-flex px-1.5 md:px-2 py-0.5 md:py-1 text-[8px] md:text-[10px] font-medium text-gray-500 bg-surface-700/50 rounded-md border border-white/5">Ctrl+K</kbd>

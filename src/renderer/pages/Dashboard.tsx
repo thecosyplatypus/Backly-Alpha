@@ -3,21 +3,22 @@ import { useGameStore } from '../store/gameStore';
 import SearchBar from '../components/Dashboard/SearchBar';
 import HeroPanel from '../components/Dashboard/HeroPanel';
 import WeeklyChart from '../components/Dashboard/WeeklyChart';
-import RecentGames from '../components/Dashboard/RecentGames';
-import PlaytimeRing from '../components/Dashboard/PlaytimeRing';
 import AchievementsPanel from '../components/Dashboard/AchievementsPanel';
-import Recommendations from '../components/Dashboard/Recommendations';
 import BacklogHealth from '../components/Dashboard/BacklogHealth';
-import CloseToCompletion from '../components/Dashboard/CloseToCompletion';
 import ShortSessionGames from '../components/Dashboard/ShortSessionGames';
 import InsightCard from '../components/Dashboard/InsightCard';
 import SteamSyncCard from '../components/ui/SteamSyncCard';
 
 export default function Dashboard() {
-  const { stats, games, fetchGames, insights } = useGameStore();
+  const stats = useGameStore(s => s.stats);
+  const games = useGameStore(s => s.games);
+  const insights = useGameStore(s => s.insights);
+  const fetchGames = useGameStore(s => s.fetchGames);
+  const fetchStats = useGameStore(s => s.fetchStats);
 
   useEffect(() => {
     fetchGames({ limit: 20, sort: 'recent' });
+    fetchStats();
   }, []);
 
   const recentlyPlayed = useMemo(
@@ -35,7 +36,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-surface-950">
       {/* Top bar */}
-      <div className="sticky top-0 z-50 bg-surface-950/80 backdrop-blur-xl border-b border-white/[0.03]">
+      <div className="sticky top-0 z-50 bg-surface-950/80 backdrop-blur-sm border-b border-white/[0.03]">
         <div className="flex items-center justify-between px-4 md:px-6 py-3 resize-transition">
           <SearchBar />
           <div className="flex items-center gap-3">
@@ -93,25 +94,8 @@ export default function Dashboard() {
         {/* Steam Sync */}
         <SteamSyncCard />
 
-        {/* Recent + Playtime */}
-        <div className="dashboard-grid grid-cols-1 xl:grid-cols-4 gap-4 md:gap-5 resize-transition">
-          <div className="xl:col-span-3">
-            <RecentGames games={recentlyPlayed} />
-          </div>
-          <div>
-            <PlaytimeRing />
-          </div>
-        </div>
-
-        {/* Insights Row */}
-        <div className="dashboard-grid grid-cols-1 xl:grid-cols-4 gap-4 md:gap-5 resize-transition">
-          <div className="xl:col-span-1">
-            <BacklogHealth />
-          </div>
-          <div className="xl:col-span-3">
-            <CloseToCompletion />
-          </div>
-        </div>
+        {/* Backlog Health */}
+        <BacklogHealth />
 
         {/* Short Session + Recommendations */}
         <ShortSessionGames />
@@ -131,15 +115,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Achievements + Recommendations */}
-        <div className="dashboard-grid grid-cols-1 xl:grid-cols-4 gap-4 md:gap-5 resize-transition">
-          <div className="xl:col-span-1">
-            <AchievementsPanel />
-          </div>
-          <div className="xl:col-span-3">
-            <Recommendations />
-          </div>
-        </div>
+        {/* Achievements */}
+        <AchievementsPanel />
 
         <div className="h-4" />
       </div>

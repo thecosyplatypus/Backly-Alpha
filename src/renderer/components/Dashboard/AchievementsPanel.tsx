@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import AchievementCard from './AchievementCard';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 
 function TrophyIcon() {
   return (
@@ -23,19 +22,21 @@ export default function AchievementsPanel() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchAchievements = useCallback(async () => {
     try {
       const data = await window.backly.getAllAchievements();
-      setAchievements(data);
+      if (mountedRef.current) setAchievements(data);
     } catch {
       // ignore
     }
-    setLoading(false);
+    if (mountedRef.current) setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchAchievements();
+    return () => { mountedRef.current = false; };
   }, [fetchAchievements]);
 
   const handleSync = async () => {
@@ -122,17 +123,20 @@ export default function AchievementsPanel() {
             </button>
           </div>
         ) : (
-          achievements.map((ach, i) => (
-            <AchievementCard
-              key={ach.id}
-              title={ach.name}
-              description={ach.description}
-              icon={ach.iconUrl}
-              progress={ach.globalProgress !== null ? Math.round(ach.globalProgress) : null}
-              unlocked={ach.unlocked}
-              gameTitle={ach.gameTitle}
-            />
-          ))
+          <div className="text-center py-6">
+            <div className="text-3xl font-bold text-white mb-1">{unlockedCount} / {totalCount}</div>
+            <p className="text-lg text-gold-400 font-semibold mb-3">
+              {totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0}%
+            </p>
+            {totalCount > 0 && (
+              <div className="w-full h-2 bg-surface-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-gold-600 to-gold-400 transition-all"
+                  style={{ width: `${(unlockedCount / totalCount) * 100}%` }}
+                />
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

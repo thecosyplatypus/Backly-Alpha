@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGameStore } from '../store/gameStore';
 import { GameStatus } from '../../shared/types';
@@ -11,6 +11,8 @@ const statusStyles: Record<string, { active: string; inactive: string }> = {
   [GameStatus.COMPLETED]: { active: 'bg-purple-600/30 text-purple-400 border border-purple-500/30', inactive: '' },
   [GameStatus.ALMOST_COMPLETED]: { active: 'bg-cyan-600/30 text-cyan-400 border border-cyan-500/30', inactive: '' },
   [GameStatus.DROPPED]: { active: 'bg-red-600/30 text-red-400 border border-red-500/30', inactive: '' },
+  [GameStatus.DEMO]: { active: 'bg-orange-600/30 text-orange-400 border border-orange-500/30', inactive: '' },
+  [GameStatus.NO_ACHIEVEMENTS]: { active: 'bg-gray-600/30 text-gray-400 border border-gray-500/30', inactive: '' },
 };
 
 const statusOptions = [
@@ -20,6 +22,8 @@ const statusOptions = [
   { value: GameStatus.COMPLETED, label: 'Completed' },
   { value: GameStatus.ALMOST_COMPLETED, label: 'Almost Completed' },
   { value: GameStatus.DROPPED, label: 'Dropped' },
+  { value: GameStatus.DEMO, label: 'Demo' },
+  { value: GameStatus.NO_ACHIEVEMENTS, label: 'No Achievements' },
 ];
 
 function CompletionRingLarge({ pct, size = 100 }: { pct: number; size?: number }) {
@@ -56,35 +60,34 @@ export default function GameDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [achData, setAchData] = useState<any>(null);
   const [achLoading, setAchLoading] = useState(false);
-  const { updateGame } = useGameStore();
+  const updateGame = useGameStore(s => s.updateGame);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
     setLoading(true);
     setError(null);
-    console.log('GameDetailPage: fetching game', id);
     window.backly.getGameById(id).then((g) => {
-      console.log('GameDetailPage: getGameById result', g ? 'found' : 'null');
+      if (!mountedRef.current) return;
       setGame(g);
       setLoading(false);
     }).catch((err) => {
-      console.error('GameDetailPage: getGameById failed', err);
+      if (!mountedRef.current) return;
       setError(err?.message || String(err));
       setLoading(false);
     });
+    return () => { mountedRef.current = false; };
   }, [id]);
 
   useEffect(() => {
     if (!id) return;
     setAchLoading(true);
-    console.log('GameDetailPage: fetching achievements for', id);
     window.backly.getGameAchievements(id).then((result) => {
-      console.log('GameDetailPage: getGameAchievements result:', result ? `total=${result.totalAchievements} unlocked=${result.unlockedAchievements} count=${result.achievements?.length}` : 'null');
+      if (!mountedRef.current) return;
       setAchData(result);
       setAchLoading(false);
-    }).catch((err) => {
-      console.error('GameDetailPage: getGameAchievements failed', err);
-      setAchLoading(false);
+    }).catch(() => {
+      if (mountedRef.current) setAchLoading(false);
     });
   }, [id]);
 
@@ -189,6 +192,7 @@ export default function GameDetailPage() {
             src={game.coverArt}
             alt={game.title}
             className="w-12 md:w-20 h-16 md:h-28 rounded-lg object-cover shadow-lg shrink-0"
+            fallback={`https://ui-avatars.com/api/?name=${encodeURIComponent(game.title)}&background=6366f1&color=fff&size=128`}
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 md:gap-2">

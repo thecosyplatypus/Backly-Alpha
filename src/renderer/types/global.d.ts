@@ -32,6 +32,14 @@ export interface BacklyAPI {
   getBacklogHealth: () => Promise<any>;
   getCloseToCompletion: () => Promise<any[]>;
   getShortSessionGames: () => Promise<any[]>;
+  getWeeklyActivity: () => Promise<{
+    totalHours: number;
+    gamesPlayed: number;
+    completionPercentage: number;
+    weeklyChange: number;
+    dailyHours: Record<string, { hours: number; games: number }>;
+    gameTitles: string[];
+  }>;
   getGameAchievements: (gameId: string) => Promise<{
     totalAchievements: number;
     unlockedAchievements: number;
@@ -50,7 +58,7 @@ export interface BacklyAPI {
   minimizeToTray: () => Promise<void>;
   getPlatform: () => Promise<string>;
   onActivityUpdate: (callback: (activity: any) => void) => (() => void) | undefined;
-  onNavigate: (callback: (path: string) => void) => void;
+  onNavigate: (callback: (path: string) => void) => () => void;
   onQuickLookup: (callback: () => void) => void;
   onRandomGame: (callback: () => void) => void;
   onUpdateProgress: (callback: (percent: number) => void) => void;

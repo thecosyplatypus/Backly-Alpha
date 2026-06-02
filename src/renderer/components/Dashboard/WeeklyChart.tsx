@@ -1,18 +1,37 @@
-import React from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-const weeklyData = [
-  { day: 'Mon', hours: 3.5 },
-  { day: 'Tue', hours: 5.2 },
-  { day: 'Wed', hours: 2.1 },
-  { day: 'Thu', hours: 7.8 },
-  { day: 'Fri', hours: 4.5 },
-  { day: 'Sat', hours: 9.3 },
-  { day: 'Sun', hours: 6.7 },
-];
+const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function WeeklyChart() {
-  const maxHours = Math.max(...weeklyData.map((d) => d.hours));
-  const totalHours = weeklyData.reduce((sum, d) => sum + d.hours, 0);
+  const [data, setData] = useState<{
+    totalHours: number;
+    gamesPlayed: number;
+    completionPercentage: number;
+    dailyHours: Record<string, { hours: number; games: number }>;
+  } | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    window.backly.getWeeklyActivity().then((d) => { if (mountedRef.current) setData(d); });
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  if (!data) {
+    return (
+      <div className="card animate-pulse">
+        <div className="h-4 w-32 bg-surface-700 rounded mb-4" />
+        <div className="flex gap-2 h-28">
+          {dayNames.map(d => <div key={d} className="flex-1 bg-surface-700 rounded-lg" />)}
+        </div>
+      </div>
+    );
+  }
+
+  const maxHours = Math.max(
+    ...dayNames.map(d => data.dailyHours[d]?.hours || 0),
+    0.1
+  );
+  const totalHours = data.totalHours;
 
   return (
     <div className="card">
@@ -27,17 +46,18 @@ export default function WeeklyChart() {
         </div>
       </div>
 
-      <div className="flex items-end gap-1 md:gap-2 h-20 md:h-28">
-        {weeklyData.map((item, i) => {
-          const heightPercent = (item.hours / maxHours) * 100;
+      <div className="flex items-stretch gap-1 md:gap-2 h-20 md:h-28">
+        {dayNames.map((day, i) => {
+          const dayData = data.dailyHours[day] || { hours: 0, games: 0 };
+          const heightPercent = (dayData.hours / maxHours) * 100;
           return (
-            <div key={item.day} className="flex-1 flex flex-col items-center gap-1 md:gap-1.5 group">
+            <div key={day} className="flex-1 flex flex-col items-center gap-1 md:gap-1.5 group">
               <span className="text-[8px] md:text-[10px] text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                {item.hours.toFixed(1)}h
+                {dayData.hours.toFixed(1)}h
               </span>
-              <div className="w-full relative flex items-end justify-center" style={{ height: '100%' }}>
+              <div className="flex-1 w-full relative flex items-end justify-center">
                 <div
-                  className="w-full max-w-[20px] md:max-w-[28px] rounded-lg bg-gradient-to-t from-gold-600 to-gold-400 hover:from-gold-500 hover:to-yellow-300 transition-all duration-300 cursor-pointer group-hover:shadow-[0_0_12px_rgba(234,179,8,0.3)]"
+                  className="w-full max-w-[20px] md:max-w-[28px] rounded-lg bg-gradient-to-t from-[#F59E0B] to-[#FB923C] hover:from-[#F59E0B] hover:to-[#FB923C] transition-all duration-300 cursor-pointer group-hover:shadow-[0_0_12px_rgba(234,179,8,0.3)]"
                   style={{
                     height: `${heightPercent}%`,
                     animation: `barRise 0.8s ease-out ${i * 0.1}s forwards`,
@@ -45,7 +65,7 @@ export default function WeeklyChart() {
                   }}
                 />
               </div>
-              <span className="text-[8px] md:text-[10px] text-gray-500 font-medium mt-0.5 md:mt-1">{item.day}</span>
+              <span className="text-[8px] md:text-[10px] text-gray-500 font-medium mt-0.5 md:mt-1">{day}</span>
             </div>
           );
         })}
@@ -55,11 +75,11 @@ export default function WeeklyChart() {
         <div className="grid grid-cols-2 gap-2 md:gap-4">
           <div>
             <p className="text-[8px] md:text-[10px] text-gray-500 uppercase tracking-wider">Games Played</p>
-            <p className="text-[11px] md:text-sm font-semibold text-white mt-0.5">8 games</p>
+            <p className="text-[11px] md:text-sm font-semibold text-white mt-0.5">{data.gamesPlayed} games</p>
           </div>
           <div>
             <p className="text-[8px] md:text-[10px] text-gray-500 uppercase tracking-wider">Completion</p>
-            <p className="text-[11px] md:text-sm font-semibold text-gold-400 mt-0.5">+12% this week</p>
+            <p className="text-[11px] md:text-sm font-semibold text-gold-400 mt-0.5">+{data.completionPercentage}% this week</p>
           </div>
         </div>
       </div>

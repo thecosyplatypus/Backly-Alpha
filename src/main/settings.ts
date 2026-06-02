@@ -11,7 +11,6 @@ export let settingsCache: any = {
   minimizeToTray: true,
   startOnBoot: false,
   language: 'en',
-  steamApiKey: '',
 };
 
 function getSettingsPath(): string {

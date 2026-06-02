@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -72,13 +72,16 @@ export default function Wrapped() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     setLoading(true);
     window.backly.getWrappedData(year).then((d) => {
+      if (!mountedRef.current) return;
       setData(d);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => { if (mountedRef.current) setLoading(false); });
+    return () => { mountedRef.current = false; };
   }, [year]);
 
   const totalSlides = 5;

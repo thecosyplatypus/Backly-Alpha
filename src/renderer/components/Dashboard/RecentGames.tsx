@@ -54,13 +54,14 @@ export default function RecentGames({ games }: Props) {
             <button
               key={game.id}
               onClick={() => navigate(`/game/${game.id}`)}
-              className="group flex-shrink-0 w-[130px] md:w-[160px] overflow-hidden rounded-xl md:rounded-2xl bg-surface-800/40 border border-white/[0.04] hover:border-gold-500/20 transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_0_20px_rgba(234,179,8,0.1)]"
+              className="group flex-shrink-0 w-[130px] md:w-[160px] overflow-hidden rounded-xl md:rounded-2xl bg-surface-800/40 border border-white/[0.04] hover:border-gold-500/20 transition-transform duration-300 hover:scale-[1.03] hover:shadow-[0_0_20px_rgba(234,179,8,0.1)]"
             >
               <div className="aspect-[16/10] overflow-hidden">
                 <SteamImage
                   src={coverArt}
                   alt={game.title}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 gpu"
+                  fallback={`https://ui-avatars.com/api/?name=${encodeURIComponent(game.title)}&background=6366f1&color=fff&size=256`}
                 />
               </div>
               <div className="p-2 md:p-3">

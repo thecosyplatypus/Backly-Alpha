@@ -46,7 +46,7 @@ export default function AchievementCard({ title, description, icon, progress, un
           : 'bg-surface-800/60 border-white/[0.04] text-gray-600'
       }`}>
         {icon ? (
-          <img src={icon} alt="" className="w-6 h-6 object-contain" />
+          <img src={icon} alt="" className="w-6 h-6 object-contain" loading="lazy" />
         ) : unlocked ? (
           <UnlockedIcon className="w-4 h-4" />
         ) : (

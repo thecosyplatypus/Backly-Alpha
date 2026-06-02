@@ -4,6 +4,7 @@ dotenv.config();
 
 import { app, BrowserWindow, shell } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import os from 'os';
 import { setupIPC } from './ipc';
 import { createTray } from './tray';
@@ -12,18 +13,8 @@ import { setupUpdater } from './updater';
 import { initDatabase, getDatabase } from './database';
 import { getSteamApiKey, syncSteamLibrary } from './steam-auth';
 
-if (process.platform === 'win32') {
-  app.commandLine.appendSwitch('disable-disk-cache');
-  app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
-  app.setPath('cache', path.join(os.tmpdir(), 'backly-cache'));
-}
-
-const envKey = process.env.STEAM_API_KEY;
-if (envKey && envKey !== 'YOUR_KEY_HERE') {
-  console.log('Steam API key found in .env');
-} else {
-  console.log('Steam API key will be read from Settings if configured');
-}
+try { fs.mkdirSync(path.join(os.tmpdir(), 'backly-cache'), { recursive: true }); } catch {}
+app.setPath('cache', path.join(os.tmpdir(), 'backly-cache'));
 
 const isDev = !app.isPackaged;
 

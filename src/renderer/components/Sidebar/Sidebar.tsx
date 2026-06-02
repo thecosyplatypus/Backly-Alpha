@@ -232,7 +232,7 @@ export default function Sidebar({ mode, overlayOpen, onToggleOverlay, onCloseOve
     <>
       {/* Desktop sidebar */}
       <aside
-        className={`${sidebarWidth} flex-shrink-0 bg-surface-950/95 backdrop-blur-xl border-r border-white/[0.04] flex flex-col py-5 relative z-10 sidebar-transition overflow-hidden ${
+        className={`${sidebarWidth} flex-shrink-0 bg-surface-950/95 backdrop-blur-sm border-r border-white/[0.04] flex flex-col py-5 relative z-10 sidebar-transition overflow-hidden ${
           isExpanded ? '' : 'items-center'
         }`}
       >

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const CATEGORY_ICONS: Record<string, React.FC<{ className?: string }>> = {
@@ -30,16 +30,17 @@ export default function ShortSessionGames() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const mountedRef = useRef(true);
+
   useEffect(() => {
     (async () => {
       try {
         const result = await window.backly.getShortSessionGames();
-        setCategories(result);
-      } catch {
-        // ignore
-      }
-      setLoading(false);
+        if (mountedRef.current) setCategories(result);
+      } catch {}
+      if (mountedRef.current) setLoading(false);
     })();
+    return () => { mountedRef.current = false; };
   }, []);
 
   if (loading) {

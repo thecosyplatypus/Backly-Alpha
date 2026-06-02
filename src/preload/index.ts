@@ -32,6 +32,7 @@ const api = {
   getBacklogHealth: () => ipcRenderer.invoke('get-backlog-health'),
   getCloseToCompletion: () => ipcRenderer.invoke('get-close-to-completion'),
   getShortSessionGames: () => ipcRenderer.invoke('get-short-session-games'),
+  getWeeklyActivity: () => ipcRenderer.invoke('get-weekly-activity'),
   getGameAchievements: (gameId: string) => ipcRenderer.invoke('get-game-achievements', gameId),
   getAllAchievements: () => ipcRenderer.invoke('get-all-achievements'),
   syncSteamAchievements: () => ipcRenderer.invoke('sync-steam-achievements'),
@@ -46,16 +47,24 @@ const api = {
   getPlatform: () => ipcRenderer.invoke('get-platform'),
 
   onNavigate: (callback: (path: string) => void) => {
-    ipcRenderer.on('navigate', (_event, path: string) => callback(path));
+    const handler = (_event: any, path: string) => callback(path);
+    ipcRenderer.on('navigate', handler);
+    return () => { ipcRenderer.removeListener('navigate', handler); };
   },
   onQuickLookup: (callback: () => void) => {
-    ipcRenderer.on('quick-lookup', () => callback());
+    const handler = () => callback();
+    ipcRenderer.on('quick-lookup', handler);
+    return () => { ipcRenderer.removeListener('quick-lookup', handler); };
   },
   onRandomGame: (callback: () => void) => {
-    ipcRenderer.on('random-game', () => callback());
+    const handler = () => callback();
+    ipcRenderer.on('random-game', handler);
+    return () => { ipcRenderer.removeListener('random-game', handler); };
   },
   onUpdateProgress: (callback: (percent: number) => void) => {
-    ipcRenderer.on('update-progress', (_event, percent: number) => callback(percent));
+    const handler = (_event: any, percent: number) => callback(percent);
+    ipcRenderer.on('update-progress', handler);
+    return () => { ipcRenderer.removeListener('update-progress', handler); };
   },
 
   onActivityUpdate: (callback: (activity: any) => void) => {

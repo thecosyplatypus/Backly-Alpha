@@ -94,12 +94,13 @@ export default function GameCard({ game, onClick, compact }: Props) {
     return (
       <button
         onClick={onClick}
-        className="group relative overflow-hidden rounded-lg aspect-[3/4] bg-surface-800 hover:scale-105 transition-all duration-200 gpu"
+        className="group relative overflow-hidden rounded-lg aspect-[3/4] bg-surface-800 hover:scale-105 transition-transform duration-200 gpu"
       >
         <SteamImage
           src={coverArt}
           alt={game.title}
           className="w-full h-full object-cover"
+          fallback={fallbackUrl}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-1.5 md:p-2">
@@ -115,7 +116,7 @@ export default function GameCard({ game, onClick, compact }: Props) {
   return (
     <button
       onClick={onClick}
-      className={`group relative overflow-hidden rounded-lg md:rounded-xl transition-all duration-200 w-full text-left card-gpu ${
+      className={`group relative overflow-hidden rounded-lg md:rounded-xl transition-transform duration-200 w-full text-left card-gpu ${
         isFullyComplete
           ? 'bg-surface-800 ring-1 ring-green-500/30 hover:ring-green-400/50 hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(34,197,94,0.15)]'
           : 'bg-surface-800 hover:scale-[1.03] hover:neon-glow'
@@ -126,6 +127,7 @@ export default function GameCard({ game, onClick, compact }: Props) {
           src={coverArt}
           alt={game.title}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300 gpu"
+          fallback={fallbackUrl}
         />
         {isFullyComplete && (
           <div className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 border border-green-400/30 text-green-400 text-[9px] font-semibold backdrop-blur-sm">

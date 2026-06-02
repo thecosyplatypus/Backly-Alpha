@@ -9,12 +9,13 @@ import { GameStatus } from '../../shared/types';
 
 const statusFilters = [
   { value: '', label: 'All' },
-  { value: GameStatus.PLAYING, label: 'Playing' },
+  { value: 'playing-or-recent', label: 'Playing' },
   { value: GameStatus.BACKLOG, label: 'Backlog' },
   { value: GameStatus.STARTED, label: 'Started' },
   { value: GameStatus.COMPLETED, label: 'Completed' },
   { value: GameStatus.ALMOST_COMPLETED, label: 'Almost Completed' },
   { value: GameStatus.DROPPED, label: 'Dropped' },
+  { value: 'demos', label: 'Demos' },
   { value: 'no-achievements', label: 'No Achievements' },
 ];
 
@@ -31,8 +32,18 @@ const PAGE_SIZE = 48;
 
 export default function Library() {
   const navigate = useNavigate();
-  const { games, totalGames, fetchGames, loading, error } = useGameStore();
-  const { steamStatus, steamSync, syncing, syncProgress, lastSyncResult, clearSyncResult, loadSteamStatus } = useSettingsStore();
+  const games = useGameStore(s => s.games);
+  const totalGames = useGameStore(s => s.totalGames);
+  const fetchGames = useGameStore(s => s.fetchGames);
+  const loading = useGameStore(s => s.loading);
+  const error = useGameStore(s => s.error);
+  const steamStatus = useSettingsStore(s => s.steamStatus);
+  const steamSync = useSettingsStore(s => s.steamSync);
+  const syncing = useSettingsStore(s => s.syncing);
+  const syncProgress = useSettingsStore(s => s.syncProgress);
+  const lastSyncResult = useSettingsStore(s => s.lastSyncResult);
+  const clearSyncResult = useSettingsStore(s => s.clearSyncResult);
+  const loadSteamStatus = useSettingsStore(s => s.loadSteamStatus);
   const resp = useResponsive();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -237,12 +248,13 @@ export default function Library() {
             <button
               key={game.id}
               onClick={() => navigate(`/game/${game.id}`)}
-              className="w-full card flex items-center gap-3 md:gap-4 text-left hover:scale-[1.01] py-2 md:py-3"
+              className="w-full card flex items-center gap-3 md:gap-4 text-left hover:scale-[1.01] transition-transform py-2 md:py-3"
             >
               <SteamImage
                 src={game.coverArt}
                 alt={game.title}
                 className="w-8 md:w-12 h-12 md:h-16 rounded object-cover shrink-0"
+                fallback={`https://ui-avatars.com/api/?name=${encodeURIComponent(game.title)}&background=6366f1&color=fff&size=128`}
               />
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] md:text-sm font-medium text-white truncate">{game.title}</p>

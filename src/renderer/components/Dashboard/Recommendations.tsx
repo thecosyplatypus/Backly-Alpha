@@ -29,7 +29,7 @@ export default function Recommendations() {
         {recommendedGames.map((game) => (
           <button
             key={game.id}
-            className="group relative overflow-hidden rounded-xl md:rounded-2xl bg-surface-800/40 border border-white/[0.04] hover:border-gold-500/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(234,179,8,0.08)] text-left card-gpu"
+            className="group relative overflow-hidden rounded-xl md:rounded-2xl bg-surface-800/40 border border-white/[0.04] hover:border-gold-500/20 transition-transform duration-300 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(234,179,8,0.08)] text-left card-gpu"
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${game.color} opacity-60 group-hover:opacity-80 transition-opacity duration-300`} />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">

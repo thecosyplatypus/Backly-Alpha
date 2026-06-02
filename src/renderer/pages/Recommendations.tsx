@@ -5,7 +5,8 @@ import { useResponsive } from '../hooks/useResponsive';
 
 export default function Recommendations() {
   const navigate = useNavigate();
-  const { recommendations, fetchRecommendations } = useGameStore();
+  const recommendations = useGameStore(s => s.recommendations);
+  const fetchRecommendations = useGameStore(s => s.fetchRecommendations);
   const resp = useResponsive();
   const [activeTab, setActiveTab] = useState('all');
 

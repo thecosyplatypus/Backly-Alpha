@@ -1,4 +1,5 @@
 import axios from 'axios';
+import crypto from 'crypto';
 import { BrowserWindow } from 'electron';
 import { getDatabase } from './database';
 import { GameStatus } from '../shared/types';
@@ -7,9 +8,11 @@ import { createActivity } from './activity-service';
 const STEAM_LOGIN_URL = 'https://steamcommunity.com/openid/login';
 
 export function getSteamApiKey(): string {
-  const { settingsStore } = require('./settings');
-  const key = settingsStore.get('steamApiKey') || process.env.STEAM_API_KEY || '';
-  return key && key !== 'YOUR_KEY_HERE' ? key : '';
+  const key = Buffer.from('0ecb374421123c6dbc1a5848a5241d9f3fc95a5d69b7e14781b884a504d59944', 'hex');
+  const iv = Buffer.from('4a4a0eee6d5e36e58115a1f149ce66d9', 'hex');
+  const encrypted = '834f2a5fe866252a383ea379888ce62e668bfaefe411894a6e3089c83829133f14a5a6795349e8abf06853e1d254e728';
+  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+  return decipher.update(encrypted, 'hex', 'utf8') + decipher.final('utf8');
 }
 
 function getBaseUrl(): string {
@@ -105,6 +108,8 @@ export const steamAuth = {
 
       authWindow.on('closed', () => {
         ses.webRequest.onBeforeRequest(null);
+        try { authWindow.webContents.removeListener('will-redirect', handleRedirect); } catch {}
+        try { authWindow.webContents.removeListener('will-navigate', handleNavigate); } catch {}
         resolve(null);
       });
     });
@@ -360,7 +365,7 @@ export async function syncSteamLibrary(
 
       try {
         const playtimeHours = (game.playtime_forever || 0) / 60;
-        const status = playtimeHours === 0 ? GameStatus.BACKLOG : GameStatus.PLAYING;
+        const status = GameStatus.BACKLOG;
         const steamAppId = game.appid.toString();
         const existing = existingMap.get(steamAppId);
         const meta = metadataMap.get(steamAppId);
@@ -395,10 +400,6 @@ export async function syncSteamLibrary(
             hoursPlayed: playtimeHours,
             steamData: JSON.stringify(game),
           };
-
-          if (existing.hoursPlayed === 0 && playtimeHours > 0 && existing.status !== GameStatus.COMPLETED && existing.status !== GameStatus.DROPPED) {
-            updateData.status = GameStatus.PLAYING;
-          }
 
           if (!existing.coverArt) {
             updateData.coverArt = `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/header.jpg`;

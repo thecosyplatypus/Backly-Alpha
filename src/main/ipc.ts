@@ -14,14 +14,13 @@ import {
   getBacklogHealth,
   getCloseToCompletion,
   getShortSessionGames,
+  getWeeklyActivity,
 } from './game-service';
-import { getActivities, createActivity } from './activity-service';
+import { getActivities, createActivity, setMainWindow } from './activity-service';
 import { updateSettings, getSettings } from './settings';
 import { GameStatus, ActivityType } from '../shared/types';
 
 let mainWindowRef: BrowserWindow | null = null;
-
-import { setMainWindow } from './activity-service';
 
 export function setupIPC(mainWindow: BrowserWindow | null): void {
   mainWindowRef = mainWindow;
@@ -186,12 +185,14 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
     return getShortSessionGames();
   });
 
+  ipcMain.handle('get-weekly-activity', async () => {
+    return getWeeklyActivity();
+  });
+
   ipcMain.handle('get-game-achievements', async (_event, gameId: string) => {
-    console.log('IPC: get-game-achievements called with gameId:', gameId);
     try {
       const { getGameAchievements } = await import('./game-service');
       const result = await getGameAchievements(gameId);
-      console.log('IPC: get-game-achievements result:', result ? `total=${result.totalAchievements} unlocked=${result.unlockedAchievements} achievements=${result.achievements?.length}` : 'null');
       return result;
     } catch (err: any) {
       console.error('IPC: get-game-achievements error:', err?.message || err);
@@ -433,7 +434,6 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
       minimizeToTray: true,
       startOnBoot: false,
       language: 'en',
-      steamApiKey: '',
     });
 
     await db.profile.create({ data: { name: 'Default' } });

@@ -56,7 +56,9 @@ const imageCache = new Map<string, HTMLImageElement>();
 
 export default function SpinWheel() {
   const navigate = useNavigate();
-  const { games, fetchGames, loading } = useGameStore();
+  const games = useGameStore(s => s.games);
+  const fetchGames = useGameStore(s => s.fetchGames);
+  const loading = useGameStore(s => s.loading);
   const [wheelGames, setWheelGames] = useState<any[]>([]);
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState<any | null>(null);
@@ -66,8 +68,10 @@ export default function SpinWheel() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rotationRef = useRef(0);
-  const animFrameRef = useRef<number>(0);
+  const animFrameRef = useRef<number | null>(null);
   const spinningRef = useRef(false);
+  const mountedRef = useRef(true);
+  const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const spinStateRef = useRef<{
     startTime: number;
     startRotation: number;
@@ -282,18 +286,33 @@ export default function SpinWheel() {
           const offsetFromStart = ((wheelAngle - ARC_START) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
           const winnerIndex = Math.min(Math.floor(offsetFromStart / segAngle), wheelGames.length - 1);
           setWinner(wheelGames[winnerIndex]);
-          setTimeout(() => setShowResult(true), 500);
+          resultTimerRef.current = setTimeout(() => { if (mountedRef.current) setShowResult(true); }, 500);
         }
-      } else {
+      } else if (!document.hidden) {
         rotationRef.current += IDLE_ROTATION_SPEED;
       }
       renderFrame();
-      animFrameRef.current = requestAnimationFrame(loop);
+      if (!document.hidden) {
+        animFrameRef.current = requestAnimationFrame(loop);
+      }
     };
+
+    const onVisibility = () => {
+      if (!document.hidden) {
+        animFrameRef.current = requestAnimationFrame(loop);
+      } else if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
     animFrameRef.current = requestAnimationFrame(loop);
     return () => {
+      mountedRef.current = false;
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [wheelGames, renderFrame]);
 

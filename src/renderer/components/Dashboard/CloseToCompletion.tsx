@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const statusColors: Record<string, string> = {
@@ -12,16 +12,17 @@ export default function CloseToCompletion() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const mountedRef = useRef(true);
+
   useEffect(() => {
     (async () => {
       try {
         const result = await window.backly.getCloseToCompletion();
-        setItems(result);
-      } catch {
-        // ignore
-      }
-      setLoading(false);
+        if (mountedRef.current) setItems(result);
+      } catch {}
+      if (mountedRef.current) setLoading(false);
     })();
+    return () => { mountedRef.current = false; };
   }, []);
 
   if (loading) {

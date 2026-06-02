@@ -197,10 +197,7 @@
   /* Smooth resize transitions */
   .resize-transition {
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                margin 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                gap 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Sidebar transitions */
@@ -333,3 +330,8 @@
 .status-paused { @apply text-yellow-400; }
 .status-wishlist { @apply text-neon-pink; }
 .status-started { @apply text-sky-400; }
+
+@keyframes barRise {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}

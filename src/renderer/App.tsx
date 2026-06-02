@@ -51,10 +51,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    window.backly.onNavigate((path) => navigate(path));
-    return () => {
-      window.backly.removeAllListeners('navigate');
-    };
+    const cleanup = window.backly.onNavigate((path) => navigate(path));
+    return () => cleanup?.();
   }, [navigate]);
 
   const shortcuts = useCallback(() => ({
