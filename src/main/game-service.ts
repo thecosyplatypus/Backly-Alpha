@@ -743,7 +743,7 @@ export async function getWeeklyActivity() {
   const now = Date.now();
   const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
 
-  let weeklyHoursFromSteam = 0;
+  let weeklyHours = 0;
   const recentlyPlayedTitles: string[] = [];
 
   for (const game of games) {
@@ -754,7 +754,7 @@ export async function getWeeklyActivity() {
         const steamData = JSON.parse(game.steamData);
         const pt2w = steamData.playtime_2weeks || 0;
         if (pt2w > 0) {
-          weeklyHoursFromSteam += pt2w / 60;
+          weeklyHours += pt2w / 60;
           playedRecently = true;
         }
       } catch {}
@@ -762,14 +762,13 @@ export async function getWeeklyActivity() {
 
     if (!playedRecently && game.lastPlayed && new Date(game.lastPlayed).getTime() > sevenDaysAgo.getTime()) {
       playedRecently = true;
+      weeklyHours += Math.min(game.hoursPlayed || 0, 2);
     }
 
     if (playedRecently) {
       recentlyPlayedTitles.push(game.title);
     }
   }
-
-  const weeklyHours = weeklyHoursFromSteam;
   const gamesPlayed = recentlyPlayedTitles.length;
 
   const activities = await db.activity.findMany({

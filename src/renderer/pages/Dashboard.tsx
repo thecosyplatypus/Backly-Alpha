@@ -22,7 +22,14 @@ export default function Dashboard() {
   }, []);
 
   const recentlyPlayed = useMemo(
-    () => games.filter(g => g.hoursPlayed > 0).slice(0, 10),
+    () => games
+      .filter(g => g.hoursPlayed > 0)
+      .sort((a, b) => {
+        const aTime = a.lastPlayed ? new Date(a.lastPlayed).getTime() : 0;
+        const bTime = b.lastPlayed ? new Date(b.lastPlayed).getTime() : 0;
+        return bTime - aTime;
+      })
+      .slice(0, 10),
     [games]
   );
 
