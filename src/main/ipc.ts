@@ -186,7 +186,16 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
   });
 
   ipcMain.handle('get-weekly-activity', async () => {
-    return getWeeklyActivity();
+    try {
+      const result = await getWeeklyActivity();
+      return result;
+    } catch (err: any) {
+      console.error('[get-weekly-activity] error:', err?.message || err, err?.stack || '');
+      return {
+        totalHours: 0, gamesPlayed: 0, completionPercentage: 0,
+        weeklyChange: 0, dailyHours: {}, gameTitles: [],
+      };
+    }
   });
 
   ipcMain.handle('get-game-achievements', async (_event, gameId: string) => {

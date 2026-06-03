@@ -197,6 +197,26 @@ const listeners = new Map<string, Set<(...args: any[]) => void>>();
   steamStatus: async () => { await delay(); return { ...mockDb.steamStatus }; },
   steamDisconnect: async () => { await delay(); mockDb.steamStatus.isConnected = false; },
 
+  getWeeklyActivity: async () => {
+    await delay(100);
+    const raw = [
+      { day: 'Mon', hours: 3.5 },
+      { day: 'Tue', hours: 5.2 },
+      { day: 'Wed', hours: 2.1 },
+      { day: 'Thu', hours: 7.8 },
+      { day: 'Fri', hours: 4.5 },
+      { day: 'Sat', hours: 9.3 },
+      { day: 'Sun', hours: 6.7 },
+    ];
+    const dailyHours: Record<string, { hours: number; games: number }> = {};
+    let totalHours = 0;
+    for (const r of raw) {
+      dailyHours[r.day] = { hours: r.hours, games: Math.ceil(r.hours / 2) };
+      totalHours += r.hours;
+    }
+    return { totalHours, gamesPlayed: 5, completionPercentage: 12, weeklyChange: 0, dailyHours, gameTitles: [] };
+  },
+
   // Activities
   getActivities: async (params?: any) => {
     await delay(150);

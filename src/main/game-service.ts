@@ -725,6 +725,7 @@ export async function syncSteamAchievements(
 }
 
 export async function getWeeklyActivity() {
+  try {
   const db = getDatabase();
   const profile = await db.profile.findFirst();
   if (!profile) {
@@ -736,42 +737,45 @@ export async function getWeeklyActivity() {
 
   const games = await db.game.findMany({
     where: { profileId: profile.id },
-    select: { steamData: true, hoursPlayed: true, title: true },
+    select: { steamData: true, hoursPlayed: true, title: true, lastPlayed: true },
   });
 
-  let totalHours2Weeks = 0;
-  let gamesPlayed2Weeks = 0;
-  const gameTitles: string[] = [];
+  const now = Date.now();
+  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+  let weeklyHoursFromSteam = 0;
+  const recentlyPlayedTitles: string[] = [];
 
   for (const game of games) {
+    let playedRecently = false;
+
     if (game.steamData) {
       try {
         const steamData = JSON.parse(game.steamData);
         const pt2w = steamData.playtime_2weeks || 0;
         if (pt2w > 0) {
-          totalHours2Weeks += pt2w / 60;
-          gamesPlayed2Weeks++;
-          gameTitles.push(game.title);
+          weeklyHoursFromSteam += pt2w / 60;
+          playedRecently = true;
         }
       } catch {}
     }
-  }
 
-  if (gamesPlayed2Weeks === 0) {
-    for (const game of games) {
-      if ((game.hoursPlayed || 0) > 0) {
-        totalHours2Weeks += game.hoursPlayed!;
-        gamesPlayed2Weeks++;
-        gameTitles.push(game.title);
-      }
+    if (!playedRecently && game.lastPlayed && new Date(game.lastPlayed).getTime() > sevenDaysAgo.getTime()) {
+      playedRecently = true;
     }
-    totalHours2Weeks = Math.min(totalHours2Weeks, games.length * 40);
+
+    if (playedRecently) {
+      recentlyPlayedTitles.push(game.title);
+    }
   }
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const weeklyHours = weeklyHoursFromSteam;
+  const gamesPlayed = recentlyPlayedTitles.length;
+
   const activities = await db.activity.findMany({
     where: { profileId: profile.id, createdAt: { gte: sevenDaysAgo } },
-    select: { createdAt: true },
+    select: { createdAt: true, type: true, gameTitle: true },
+    orderBy: { createdAt: 'asc' },
   });
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -784,27 +788,37 @@ export async function getWeeklyActivity() {
   }
 
   const totalActivities = Object.values(dayActivityCount).reduce((a, b) => a + b, 0);
-  const weeklyHours = totalHours2Weeks / 2;
   const dailyHours: Record<string, { hours: number; games: number }> = {};
 
   for (const day of dayNames) {
-    const weight = totalActivities > 0 ? dayActivityCount[day] / totalActivities : 1 / 7;
-    dailyHours[day] = {
-      hours: Math.round(weeklyHours * weight * 10) / 10,
-      games: Math.round(gamesPlayed2Weeks * weight),
-    };
+    if (totalActivities > 0) {
+      const weight = dayActivityCount[day] / totalActivities;
+      dailyHours[day] = {
+        hours: Math.round(weeklyHours * weight * 10) / 10,
+        games: Math.round(gamesPlayed * weight),
+      };
+    } else {
+      dailyHours[day] = { hours: 0, games: 0 };
+    }
   }
 
   const completionPercentage = games.length > 0
-    ? Math.round((gamesPlayed2Weeks / games.length) * 100)
+    ? Math.round((gamesPlayed / games.length) * 100)
     : 0;
 
   return {
     totalHours: Math.round(weeklyHours * 10) / 10,
-    gamesPlayed: gamesPlayed2Weeks,
+    gamesPlayed,
     completionPercentage,
     weeklyChange: 0,
     dailyHours,
-    gameTitles: gameTitles.slice(0, 10),
+    gameTitles: recentlyPlayedTitles.slice(0, 10),
   };
+  } catch (err: any) {
+    console.error('[getWeeklyActivity] error:', err?.message || err, err?.stack || '');
+    return {
+      totalHours: 0, gamesPlayed: 0, completionPercentage: 0,
+      weeklyChange: 0, dailyHours: {}, gameTitles: [],
+    };
+  }
 }

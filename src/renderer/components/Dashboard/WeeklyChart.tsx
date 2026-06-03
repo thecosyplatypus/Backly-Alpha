@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function WeeklyChart() {
   const [data, setData] = useState<{
@@ -9,19 +9,36 @@ export default function WeeklyChart() {
     completionPercentage: number;
     dailyHours: Record<string, { hours: number; games: number }>;
   } | null>(null);
-  const mountedRef = useRef(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    window.backly.getWeeklyActivity().then((d) => { if (mountedRef.current) setData(d); });
-    return () => { mountedRef.current = false; };
+    let cancelled = false;
+    window.backly.getWeeklyActivity()
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch((e) => { console.error('[WeeklyChart] fetch error:', e); if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
   }, []);
+
+  if (error) {
+    return (
+      <div className="card">
+        <div className="flex items-center justify-between mb-3 md:mb-5">
+          <div>
+            <h3 className="text-[11px] md:text-sm font-semibold text-white">Weekly Activity</h3>
+            <p className="text-[9px] md:text-xs text-gray-500 mt-0.5">Last 7 days</p>
+          </div>
+        </div>
+        <p className="text-[10px] md:text-xs text-gray-500">No activity data available</p>
+      </div>
+    );
+  }
 
   if (!data) {
     return (
       <div className="card animate-pulse">
-        <div className="h-4 w-32 bg-surface-700 rounded mb-4" />
+        <div className="h-4 w-32 bg-surface-700/50 rounded mb-4" />
         <div className="flex gap-2 h-28">
-          {dayNames.map(d => <div key={d} className="flex-1 bg-surface-700 rounded-lg" />)}
+          {dayNames.map(d => <div key={d} className="flex-1 bg-surface-700/50 rounded-lg" />)}
         </div>
       </div>
     );
@@ -60,7 +77,7 @@ export default function WeeklyChart() {
                   className="w-full max-w-[20px] md:max-w-[28px] rounded-lg bg-gradient-to-t from-[#F59E0B] to-[#FB923C] hover:from-[#F59E0B] hover:to-[#FB923C] transition-all duration-300 cursor-pointer group-hover:shadow-[0_0_12px_rgba(234,179,8,0.3)]"
                   style={{
                     height: `${heightPercent}%`,
-                    animation: `barRise 0.8s ease-out ${i * 0.1}s forwards`,
+                    animation: `barRise 0.8s ease-out ${i * 0.1}s both`,
                     transformOrigin: 'bottom',
                   }}
                 />

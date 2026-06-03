@@ -83,7 +83,6 @@ export default function BacklogHealth() {
             className={`h-full rounded-full bg-gradient-to-r ${cfg.color} transition-all duration-1000 ease-out shadow-[0_0_12px_var(--glow)]`}
             style={{ width: `${health.score}%`, '--glow': cfg.glow } as React.CSSProperties}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
           </div>
         </div>
       </div>

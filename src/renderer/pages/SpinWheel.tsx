@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
 import { GameStatus } from '../../shared/types';
 
@@ -103,11 +103,20 @@ export default function SpinWheel() {
     });
   }, []);
 
+  const initializedRef = useRef(false);
+
   useEffect(() => {
-    if (games.length > 0) {
+    if (games.length > 0 && !initializedRef.current) {
+      initializedRef.current = true;
       loadWheelGames(games, poolFilter, maxGames);
     }
-  }, [games, poolFilter, maxGames, loadWheelGames]);
+  }, [games, loadWheelGames, poolFilter, maxGames]);
+
+  useEffect(() => {
+    if (initializedRef.current) {
+      loadWheelGames(games, poolFilter, maxGames);
+    }
+  }, [poolFilter, maxGames, loadWheelGames, games]);
 
   const getCoverUrl = useCallback((game: any): string => {
     if (game.coverArt) return game.coverArt;
@@ -266,6 +275,7 @@ export default function SpinWheel() {
   }, [drawWheel]);
 
   useEffect(() => {
+    mountedRef.current = true;
     if (wheelGames.length === 0) return;
 
     const loop = () => {
@@ -286,7 +296,8 @@ export default function SpinWheel() {
           const offsetFromStart = ((wheelAngle - ARC_START) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
           const winnerIndex = Math.min(Math.floor(offsetFromStart / segAngle), wheelGames.length - 1);
           setWinner(wheelGames[winnerIndex]);
-          resultTimerRef.current = setTimeout(() => { if (mountedRef.current) setShowResult(true); }, 500);
+          console.log('[SPIN] Winner:', wheelGames[winnerIndex]?.title, 'index:', winnerIndex);
+          resultTimerRef.current = setTimeout(() => { if (mountedRef.current) setShowResult(true); console.log('[SPIN] showResult=true'); }, 500);
         }
       } else if (!document.hidden) {
         rotationRef.current += IDLE_ROTATION_SPEED;
@@ -373,165 +384,145 @@ export default function SpinWheel() {
   }
 
   return (
-    <div
-      className="relative w-full h-screen overflow-hidden"
-      ref={containerRef}
-      style={{ background: 'radial-gradient(circle at 50% 95%, #1a1a1a 0%, #0a0a0a 100%)' }}
-    >
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 block"
-        onClick={handleCanvasClick}
-        style={{ cursor: spinning ? 'default' : 'pointer' }}
-      />
+    <>
+      <div
+        className="relative w-full h-screen overflow-hidden"
+        ref={containerRef}
+        style={{ background: 'radial-gradient(circle at 50% 95%, #1a1a1a 0%, #0a0a0a 100%)' }}
+      >
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 block"
+          onClick={handleCanvasClick}
+          style={{ cursor: spinning ? 'default' : 'pointer' }}
+        />
 
-      <div className="absolute top-4 left-4 md:top-6 md:left-6 z-10">
-        <div className="px-5 py-2 rounded-xl bg-black/60 backdrop-blur-xl border border-white/10">
-          <h1 className="text-fluid-lg md:text-xl font-bold text-gold-400">Spin Wheel</h1>
-        </div>
-      </div>
-
-      <div className="absolute top-4 right-4 md:top-6 md:right-6 z-10 flex items-center gap-3">
-        <select
-          value={poolFilter}
-          onChange={(e) => setPoolFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-gray-800/80 backdrop-blur-xl border border-white/10 text-[11px] md:text-xs text-gray-300 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-        >
-          {POOL_FILTER_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        <select
-          value={maxGames}
-          onChange={(e) => setMaxGames(Number(e.target.value))}
-          className="px-3 py-2 rounded-lg bg-gray-800/80 backdrop-blur-xl border border-white/10 text-[11px] md:text-xs text-gray-300 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-        >
-          {MAX_WHEEL_GAMES_OPTIONS.map((n) => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
-        <div className="px-3 py-2 rounded-lg bg-gray-800/80 backdrop-blur-xl border border-white/10">
-          <span className="text-[11px] md:text-xs text-gray-300">
-            {wheelGames.length} games loaded
-          </span>
-        </div>
-        <button
-          onClick={handleSpinAgain}
-          disabled={spinning}
-          className="px-3 py-2 rounded-lg bg-gray-800/80 backdrop-blur-xl border border-white/10 text-gray-300 hover:bg-gray-700/80 transition-colors disabled:opacity-40"
-          title="Respin Pool"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-3">
-        <motion.button
-          onClick={handleSpin}
-          disabled={spinning || wheelGames.length === 0}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="group relative inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-black text-sm md:text-base tracking-wider uppercase shadow-lg transition-all duration-300 active:scale-[0.96] disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          {spinning ? 'Spinning\u2026' : 'SPIN!'}
-        </motion.button>
-        {spinning && (
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-gold-500/20">
-            <div className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse" />
-            <span className="text-[10px] text-gold-400 font-medium tracking-wider uppercase">Spinning\u2026</span>
+        <div className="absolute top-4 left-4 md:top-6 md:left-6 z-10">
+          <div className="px-5 py-2 rounded-xl bg-black/60 backdrop-blur-xl border border-white/10">
+            <h1 className="text-fluid-lg md:text-xl font-bold text-gold-400">Spin Wheel</h1>
           </div>
-        )}
-      </div>
+        </div>
 
-      <AnimatePresence>
-        {showResult && winner && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        <div className="absolute top-4 right-4 md:top-6 md:right-6 z-10 flex items-center gap-3">
+          <select
+            value={poolFilter}
+            onChange={(e) => setPoolFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-gray-800/80 backdrop-blur-xl border border-white/10 text-[11px] md:text-xs text-gray-300 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-md mx-4 bg-gray-900 border border-gold-500/20 rounded-2xl p-6 md:p-8 shadow-[0_0_60px_rgba(250,204,21,0.12)]"
-            >
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-gold-600 to-yellow-500 rounded-full text-black text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-lg">
-                Selected!
-              </div>
-
-              <div className="flex flex-col items-center gap-3 md:gap-4 mt-2">
-                <div className="w-20 md:w-28 h-24 md:h-32 rounded-xl overflow-hidden ring-2 ring-gold-500/30">
-                  <img
-                    src={winner.coverArt || `https://ui-avatars.com/api/?name=${encodeURIComponent(winner.title)}&background=1a1f2e&color=facc15&size=128`}
-                    alt={winner.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                <h2 className="text-fluid-lg md:text-2xl font-bold text-white text-center">{winner.title}</h2>
-
-                <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-400">
-                  <span className="px-2 py-0.5 rounded-md bg-gray-800 border border-white/10">
-                    {Math.round(winner.hoursPlayed)}h played
-                  </span>
-                  {winner.genre && (
-                    <span className="px-2 py-0.5 rounded-md bg-gray-800 border border-white/10">
-                      {winner.genre}
-                    </span>
-                  )}
-                  {winner.status && (
-                    <span className="px-2 py-0.5 rounded-md bg-gray-800 border border-white/10 capitalize">
-                      {winner.status.toLowerCase()}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 md:gap-3 mt-1 w-full">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate(`/game/${winner.id}`)}
-                    className="flex-1 py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-gold-600 to-gold-500 hover:from-gold-500 hover:to-gold-400 text-black font-semibold text-[11px] md:text-sm transition-all active:scale-[0.97]"
-                  >
-                    View Details
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => { handleSpinAgain(); setShowResult(false); }}
-                    className="flex-1 py-2.5 md:py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white font-semibold text-[11px] md:text-sm transition-all active:scale-[0.97] border border-white/10"
-                  >
-                    Spin Again
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {wheelGames.length === 0 && !loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-          <div className="w-14 h-14 rounded-2xl bg-gray-800/60 border border-white/10 flex items-center justify-center mb-4">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="1.5" className="w-7 h-7">
-              <path d="M12 2a10 10 0 0110 10M12 2v4M12 2l3 3M12 22A10 10 0 012 12M12 22v-4M12 22l-3-3M20 12h4M4 12H2M20 12l3-3M4 12l-2-3M17 7l3-3M7 17l-3 3" />
-            </svg>
+            {POOL_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <select
+            value={maxGames}
+            onChange={(e) => setMaxGames(Number(e.target.value))}
+            className="px-3 py-2 rounded-lg bg-gray-800/80 backdrop-blur-xl border border-white/10 text-[11px] md:text-xs text-gray-300 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+          >
+            {MAX_WHEEL_GAMES_OPTIONS.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <div className="px-3 py-2 rounded-lg bg-gray-800/80 backdrop-blur-xl border border-white/10">
+            <span className="text-[11px] md:text-xs text-gray-300">
+              {wheelGames.length} games loaded
+            </span>
           </div>
-          <h3 className="text-sm font-semibold text-white mb-1">No eligible games</h3>
-          <p className="text-[11px] text-gray-500 max-w-[240px] text-center leading-relaxed">
-            Add games to your backlog or start playing to load the wheel.
-          </p>
+          <button
+            onClick={handleSpinAgain}
+            disabled={spinning}
+            className="px-3 py-2 rounded-lg bg-gray-800/80 backdrop-blur-xl border border-white/10 text-gray-300 hover:bg-gray-700/80 transition-colors disabled:opacity-40"
+            title="Respin Pool"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         </div>
+
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-3">
+          <motion.button
+            onClick={handleSpin}
+            disabled={spinning || wheelGames.length === 0}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="group relative inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-black text-sm md:text-base tracking-wider uppercase shadow-lg transition-all duration-300 active:scale-[0.96] disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {spinning ? 'Spinning\u2026' : 'SPIN!'}
+          </motion.button>
+          {spinning && (
+            <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-gold-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse" />
+              <span className="text-[10px] text-gold-400 font-medium tracking-wider uppercase">Spinning\u2026</span>
+            </div>
+          )}
+        </div>
+
+        {wheelGames.length === 0 && !loading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+            <div className="w-14 h-14 rounded-2xl bg-gray-800/60 border border-white/10 flex items-center justify-center mb-4">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="1.5" className="w-7 h-7">
+                <path d="M12 2a10 10 0 0110 10M12 2v4M12 2l3 3M12 22A10 10 0 012 12M12 22v-4M12 22l-3-3M20 12h4M4 12H2M20 12l3-3M4 12l-2-3M17 7l3-3M7 17l-3 3" />
+              </svg>
+            </div>
+            <h3 className="text-sm font-semibold text-white mb-1">No eligible games</h3>
+            <p className="text-[11px] text-gray-500 max-w-[240px] text-center leading-relaxed">
+              Add games to your backlog or start playing to load the wheel.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {showResult && winner && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0, y: 40 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: 'spring', damping: 15, stiffness: 200 }}
+            className="relative bg-[#0a0a0a] text-[#FFD700] p-10 rounded-2xl text-center shadow-2xl border border-[#FFD700]/30 max-w-md w-full mx-4"
+          >
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full bg-[#FFD700] text-[#0a0a0a] font-black text-sm tracking-widest uppercase shadow-lg">
+              Winner
+            </div>
+            <div className="mt-6 mb-4">
+              <img
+                src={getCoverUrl(winner)}
+                alt={winner.title}
+                className="w-24 h-24 mx-auto mb-3 rounded-2xl border-2 border-[#FFD700]/40 object-cover shadow-lg"
+              />
+              <svg className="w-12 h-12 mx-auto mb-1 text-[#FFD700]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+              <div className="text-3xl font-black text-[#FFD700]">WINNER!</div>
+            </div>
+            <div className="my-4 text-xl font-bold text-[#FFD700] drop-shadow-lg">
+              {winner.title}
+            </div>
+            <div className="flex gap-3 justify-center mt-6">
+              <button
+                onClick={() => navigate(`/game/${winner.id}`)}
+                className="flex-1 px-5 py-3 rounded-xl bg-[#FFD700] text-[#0a0a0a] font-bold text-sm hover:brightness-110 transition-all active:scale-95"
+              >
+                View Details
+              </button>
+              <button
+                onClick={() => { handleSpinAgain(); setShowResult(false); }}
+                className="flex-1 px-5 py-3 rounded-xl bg-[#FFD700]/10 text-[#FFD700] font-bold text-sm hover:bg-[#FFD700]/20 transition-all active:scale-95 border border-[#FFD700]/30"
+              >
+                Spin Again
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
-    </div>
+    </>
   );
 }
