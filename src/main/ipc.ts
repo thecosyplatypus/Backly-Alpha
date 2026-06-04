@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, shell } from 'electron';
 import { getDatabase, initDatabase } from './database';
 import { getSteamApiKey, steamAuth, syncSteamLibrary, fetchSteamAppDetailsBatch } from './steam-auth';
 import {
@@ -18,7 +18,7 @@ import {
 } from './game-service';
 import { getActivities, createActivity, setMainWindow } from './activity-service';
 import { updateSettings, getSettings } from './settings';
-import { GameStatus, ActivityType } from '../shared/types';
+import { ActivityType } from '../shared/types';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -198,6 +198,16 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
     }
   });
 
+  ipcMain.handle('launch-steam-game', async (_event, steamAppId: string) => {
+    try {
+      await shell.openExternal(`steam://run/${steamAppId}`);
+      return { success: true };
+    } catch (err: any) {
+      console.error('[launch-steam-game] error:', err?.message || err);
+      return { success: false, error: err?.message || 'Failed to launch' };
+    }
+  });
+
   ipcMain.handle('get-game-achievements', async (_event, gameId: string) => {
     try {
       const { getGameAchievements } = await import('./game-service');
@@ -311,114 +321,6 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
       console.error('[refresh-all-metadata] Error:', err);
       return { success: false, message: err?.message || 'Unknown error' };
     }
-  });
-
-  ipcMain.handle('get-wrapped-data', async (_event, year: number) => {
-    const db = getDatabase();
-    const profile = await db.profile.findFirst();
-    if (!profile) return null;
-
-    const allGames = await db.game.findMany({ where: { profileId: profile.id } });
-    const yearStart = new Date(year, 0, 1);
-    const yearEnd = new Date(year + 1, 0, 1);
-
-    const gamesCompletedThisYear = allGames.filter(g =>
-      g.status === GameStatus.COMPLETED &&
-      g.completionDate &&
-      new Date(g.completionDate) >= yearStart &&
-      new Date(g.completionDate) < yearEnd
-    );
-
-    const gamesStartedThisYear = allGames.filter(g =>
-      g.createdAt &&
-      new Date(g.createdAt) >= yearStart &&
-      new Date(g.createdAt) < yearEnd
-    );
-
-    const hoursThisYear = allGames.reduce((sum, g) => sum + (g.hoursPlayed || 0), 0);
-    const completedThisYear = gamesCompletedThisYear.length;
-    const startedThisYear = gamesStartedThisYear.length;
-
-    const genreHours: Record<string, number> = {};
-    for (const g of allGames) {
-      if (g.genre) {
-        genreHours[g.genre] = (genreHours[g.genre] || 0) + (g.hoursPlayed || 0);
-      }
-    }
-
-    const topGenres = Object.entries(genreHours)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
-      .map(([genre, hours]) => ({ genre, hours: Math.round(hours) }));
-
-    const monthlyActivity: Record<string, number> = {};
-    for (let m = 0; m < 12; m++) {
-      monthlyActivity[`${m + 1}`] = 0;
-    }
-    for (const g of allGames) {
-      if (g.lastPlayed) {
-        const d = new Date(g.lastPlayed);
-        if (d >= yearStart && d < yearEnd) {
-          const m = d.getMonth() + 1;
-          monthlyActivity[`${m}`] = (monthlyActivity[`${m}`] || 0) + 1;
-        }
-      }
-    }
-
-    const topGames = [...allGames]
-      .sort((a, b) => (b.hoursPlayed || 0) - (a.hoursPlayed || 0))
-      .slice(0, 10)
-      .map(g => ({
-        id: g.id,
-        title: g.title,
-        coverArt: g.coverArt,
-        hoursPlayed: Math.round(g.hoursPlayed || 0),
-        status: g.status,
-        genre: g.genre,
-        completionDate: g.completionDate,
-      }));
-
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const maxActivity = Math.max(...Object.values(monthlyActivity), 1);
-    const biggestMonthEntry = Object.entries(monthlyActivity).sort(([, a], [, b]) => b - a)[0];
-    const biggestMonth = biggestMonthEntry
-      ? { name: monthNames[parseInt(biggestMonthEntry[0]) - 1], count: biggestMonthEntry[1] }
-      : { name: 'N/A', count: 0 };
-
-    const completionStats = {
-      totalAchievements: allGames.reduce((s, g) => s + (g.totalAchievements || 0), 0),
-      unlockedAchievements: allGames.reduce((s, g) => s + (g.unlockedAchievements || 0), 0),
-    };
-
-    return {
-      year,
-      totalGames: allGames.length,
-      totalHours: Math.round(hoursThisYear),
-      completedThisYear,
-      startedThisYear,
-      biggestMonth,
-      topGenres,
-      topGames,
-      monthlyActivity,
-      completionStats,
-      longestGame: topGames[0] || null,
-      totalBacklog: allGames.filter(g => g.status === GameStatus.BACKLOG).length,
-      avgHoursPerGame: allGames.length > 0 ? Math.round(hoursThisYear / allGames.length) : 0,
-    };
-  });
-
-  ipcMain.handle('get-genre-gradient', async (_event, genre: string) => {
-    const gradients: Record<string, string> = {
-      RPG: 'linear-gradient(135deg, rgba(76,29,149,0.9), rgba(105,10,204,0.95))',
-      Horror: 'linear-gradient(135deg, rgba(0,0,0,0.95), rgba(68,0,0,0.9))',
-      FPS: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(200,0,0,0.5))',
-      Strategy: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(0,0,139,0.8))',
-      Simulation: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(139,69,19,0.8))',
-      Adventure: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(34,139,34,0.7))',
-      Action: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(255,69,0,0.5))',
-      Indie: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(218,165,32,0.6))',
-    };
-    return gradients[genre] || 'linear-gradient(135deg, rgba(10,10,10,0.95), rgba(20,20,20,1))';
   });
 
   ipcMain.handle('factory-reset', async () => {

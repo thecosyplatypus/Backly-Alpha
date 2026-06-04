@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGameStore } from '../store/gameStore';
 import { GameStatus } from '../../shared/types';
 import SteamImage from '../components/ui/SteamImage';
+import PlayButton from '../components/ui/PlayButton';
 
 const statusStyles: Record<string, { active: string; inactive: string }> = {
   [GameStatus.BACKLOG]: { active: 'bg-gray-600/30 text-gray-400 border border-gray-500/30', inactive: '' },
@@ -107,12 +108,6 @@ export default function GameDetailPage() {
     if (!game) return;
     await updateGame(game.id, { isFavourite: !game.isFavourite });
     setGame({ ...game, isFavourite: !game.isFavourite });
-  };
-
-  const handleHoursChange = async (hours: number) => {
-    if (!game) return;
-    await updateGame(game.id, { hoursPlayed: hours });
-    setGame({ ...game, hoursPlayed: hours });
   };
 
   const achTotal = achData?.totalAchievements ?? 0;
@@ -233,22 +228,12 @@ export default function GameDetailPage() {
           <div className="card">
             <h2 className="text-[11px] md:text-sm font-semibold text-white mb-2 md:mb-3">Playtime</h2>
             <div className="flex items-center gap-3 md:gap-4">
-              <div className="flex items-center gap-1.5 md:gap-2">
-                <p className="text-[11px] md:text-sm text-gray-300">
-                  <span className="text-white font-semibold">{Math.round(game.hoursPlayed)}h</span> played
-                </p>
-                <div className="flex items-center gap-1.5 md:gap-2 ml-2">
-                  <button onClick={() => handleHoursChange(Math.max(0, game.hoursPlayed - 0.5))} className="btn-ghost text-[10px] md:text-xs p-0.5 md:p-1">−</button>
-                  <input
-                    type="number"
-                    value={game.hoursPlayed}
-                    onChange={(e) => handleHoursChange(parseFloat(e.target.value) || 0)}
-                    className="input w-14 md:w-20 text-center text-[10px] md:text-sm py-1 md:py-2"
-                    step="0.5"
-                  />
-                  <button onClick={() => handleHoursChange(game.hoursPlayed + 0.5)} className="btn-ghost text-[10px] md:text-xs p-0.5 md:p-1">+</button>
-                </div>
-              </div>
+              <p className="text-[11px] md:text-sm text-gray-300">
+                <span className="text-white font-semibold">{Math.round(game.hoursPlayed)}h</span> played
+              </p>
+              {game.steamAppId && (
+                <PlayButton steamAppId={game.steamAppId} gameTitle={game.title} />
+              )}
             </div>
           </div>
 

@@ -9,7 +9,6 @@ const SHORTCUT_DISPLAY: Record<string, string> = {
   'ctrl+2': 'Library',
   'ctrl+3': 'Recommendations',
   'ctrl+4': 'Spin Wheel',
-  'ctrl+5': 'Wrapped',
   'ctrl+,': 'Settings',
   'ctrl+f': 'Search',
   'ctrl+b': 'Toggle Sidebar',

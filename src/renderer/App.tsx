@@ -12,15 +12,12 @@ const GameDetailPage = React.lazy(() => import('./pages/GameDetailPage'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const Recommendations = React.lazy(() => import('./pages/Recommendations'));
 const SpinWheel = React.lazy(() => import('./pages/SpinWheel'));
-const Wrapped = React.lazy(() => import('./pages/Wrapped'));
-
 const PAGES = [
   { path: '/', element: <Dashboard /> },
   { path: '/library', element: <Library /> },
   { path: '/game/:id', element: <GameDetailPage /> },
   { path: '/recommendations', element: <Recommendations /> },
   { path: '/spin-wheel', element: <SpinWheel /> },
-  { path: '/wrapped', element: <Wrapped /> },
   { path: '/settings', element: <Settings /> },
 ];
 
@@ -60,7 +57,6 @@ export default function App() {
     'ctrl+2': () => navigate('/library'),
     'ctrl+3': () => navigate('/recommendations'),
     'ctrl+4': () => navigate('/spin-wheel'),
-    'ctrl+5': () => navigate('/wrapped'),
     'ctrl+,': () => navigate('/settings'),
     'ctrl+r': () => steamSync(),
     'escape': () => {

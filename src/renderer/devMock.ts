@@ -196,6 +196,12 @@ const listeners = new Map<string, Set<(...args: any[]) => void>>();
   steamSync: async () => { await delay(); return { success: true, imported: 5, updated: 3, errors: 0 }; },
   steamStatus: async () => { await delay(); return { ...mockDb.steamStatus }; },
   steamDisconnect: async () => { await delay(); mockDb.steamStatus.isConnected = false; },
+  launchSteamGame: async (steamAppId: string) => {
+    await delay(200);
+    console.log('[Backly Dev] Launch Steam game:', steamAppId);
+    window.open(`steam://run/${steamAppId}`, '_blank');
+    return { success: true };
+  },
 
   getWeeklyActivity: async () => {
     await delay(100);

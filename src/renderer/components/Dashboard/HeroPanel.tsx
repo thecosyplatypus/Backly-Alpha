@@ -1,4 +1,5 @@
 import React from 'react';
+import PlayButton from '../ui/PlayButton';
 
 interface Props {
   game?: any;
@@ -48,13 +49,17 @@ export default function HeroPanel({ game }: Props) {
           </div>
 
           <div className="flex items-center gap-2 md:gap-3">
-            <button className="btn-primary flex items-center gap-1.5 md:gap-2 text-[11px] md:text-sm px-4 md:px-6 py-2 md:py-3 rounded-xl">
-              <svg className="w-3.5 md:w-4 h-3.5 md:h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              <span className="hidden xs:inline">Continue Playing</span>
-              <span className="xs:hidden">Play</span>
-            </button>
+            {g.steamAppId ? (
+              <PlayButton steamAppId={g.steamAppId} gameTitle={g.title} />
+            ) : (
+              <button className="btn-primary flex items-center gap-1.5 md:gap-2 text-[11px] md:text-sm px-4 md:px-6 py-2 md:py-3 rounded-xl">
+                <svg className="w-3.5 md:w-4 h-3.5 md:h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                <span className="hidden xs:inline">Continue Playing</span>
+                <span className="xs:hidden">Play</span>
+              </button>
+            )}
             <button className="btn-glass flex items-center gap-1.5 md:gap-2 text-[11px] md:text-sm px-4 md:px-6 py-2 md:py-3 rounded-xl border border-white/[0.06]">
               <svg className="w-3.5 md:w-4 h-3.5 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

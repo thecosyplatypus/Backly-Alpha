@@ -54,14 +54,6 @@ function WheelIcon() {
   );
 }
 
-function StatsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
-      <path d="M18 20V10M12 20V4M6 20v-6" />
-    </svg>
-  );
-}
-
 function AchievementsIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
@@ -102,7 +94,6 @@ const navItems = [
   { path: '/library', label: 'Library', icon: LibraryIcon },
   { path: '/recommendations', label: 'Suggestions', icon: PlayingIcon },
   { path: '/spin-wheel', label: 'Spin Wheel', icon: WheelIcon },
-  { path: '/wrapped', label: 'Wrapped', icon: StatsIcon },
   { path: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 

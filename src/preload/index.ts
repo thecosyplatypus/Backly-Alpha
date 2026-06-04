@@ -14,6 +14,7 @@ const api = {
   steamSync: () => ipcRenderer.invoke('steam-sync'),
   steamStatus: () => ipcRenderer.invoke('steam-status'),
   steamDisconnect: () => ipcRenderer.invoke('steam-disconnect'),
+  launchSteamGame: (steamAppId: string) => ipcRenderer.invoke('launch-steam-game', steamAppId),
 
   getBacklogInsights: () => ipcRenderer.invoke('get-backlog-insights'),
   getRecommendations: (type?: string) => ipcRenderer.invoke('get-recommendations', type),
@@ -38,11 +39,6 @@ const api = {
   syncSteamAchievements: () => ipcRenderer.invoke('sync-steam-achievements'),
   refreshGameMetadata: (gameId: string) => ipcRenderer.invoke('refresh-game-metadata', gameId),
   refreshAllMetadata: () => ipcRenderer.invoke('refresh-all-metadata'),
-  getAchievementStats: () => ipcRenderer.invoke('get-achievement-stats'),
-  getWrappedData: (year: number) => ipcRenderer.invoke('get-wrapped-data', year),
-  getGenreGradient: (genre: string) => ipcRenderer.invoke('get-genre-gradient', genre),
-  factoryReset: () => ipcRenderer.invoke('factory-reset'),
-
   minimizeToTray: () => ipcRenderer.invoke('minimize-to-tray'),
   getPlatform: () => ipcRenderer.invoke('get-platform'),
 

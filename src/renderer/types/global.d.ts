@@ -19,6 +19,7 @@ export interface BacklyAPI {
   steamSync: () => Promise<any>;
   steamStatus: () => Promise<any>;
   steamDisconnect: () => Promise<any>;
+  launchSteamGame: (steamAppId: string) => Promise<{ success: boolean }>;
   getBacklogInsights: () => Promise<any[]>;
   getRecommendations: (type?: string) => Promise<any[]>;
   getSettings: () => Promise<any>;
@@ -51,7 +52,6 @@ export interface BacklyAPI {
   getAchievementStats: () => Promise<{ total: number; unlocked: number; locked: number; games: number }>;
   refreshGameMetadata: (gameId: string) => Promise<{ success: boolean; message?: string; genre?: string | null; developer?: string | null; publisher?: string | null; releaseDate?: string | null }>;
   refreshAllMetadata: () => Promise<{ success: boolean; message?: string; enriched?: number; total?: number }>;
-  getWrappedData: (year: number) => Promise<any>;
   getGenreGradient: (genre: string) => Promise<string>;
   factoryReset: () => Promise<{ success: boolean }>;
 
