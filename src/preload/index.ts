@@ -27,6 +27,7 @@ const api = {
 
   exportData: (format: string) => ipcRenderer.invoke('export-data', format),
   importData: (data: string) => ipcRenderer.invoke('import-data', data),
+  factoryReset: () => ipcRenderer.invoke('factory-reset'),
 
   getActivities: (params?: any) => ipcRenderer.invoke('get-activities', params),
   createActivity: (type: string, payload: any) => ipcRenderer.invoke('create-activity', type, payload),

@@ -245,16 +245,12 @@ export default function Settings() {
     setResetting(true);
     try {
       await window.backly.factoryReset();
-      await useSettingsStore.getState().loadSteamStatus();
-      await useGameStore.getState().fetchStats();
-      await useGameStore.getState().fetchGames();
-      await useGameStore.getState().fetchInsights();
-      await useActivityStore.getState().fetchActivities();
-      setShowResetModal(false);
+      // Reload entire app to clear all in-memory state
+      window.location.reload();
     } catch (err) {
       console.error('Factory reset failed:', err);
+      setResetting(false);
     }
-    setResetting(false);
   };
 
   return (

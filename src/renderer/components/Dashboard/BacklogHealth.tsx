@@ -87,7 +87,11 @@ export default function BacklogHealth() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        <div className="text-center p-2 rounded-lg bg-surface-800/40 border border-white/[0.03]">
+          <p className="text-[10px] md:text-xs font-bold text-white">{health.totalGames}</p>
+          <p className="text-[7px] md:text-[9px] text-gray-500 mt-0.5">Backlog</p>
+        </div>
         <div className="text-center p-2 rounded-lg bg-surface-800/40 border border-white/[0.03]">
           <p className="text-[10px] md:text-xs font-bold text-white">{health.completedGames}</p>
           <p className="text-[7px] md:text-[9px] text-gray-500 mt-0.5">Completed</p>

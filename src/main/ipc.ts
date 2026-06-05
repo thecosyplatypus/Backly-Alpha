@@ -325,16 +325,17 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
 
   ipcMain.handle('factory-reset', async () => {
     const db = getDatabase();
+
+    // Standalone tables with no FK constraints
     try {
       await db.$executeRawUnsafe('DELETE FROM "Activity"');
-    } catch {
-      // Activity table may not exist; ignore
-    }
+    } catch {}
     await db.syncLog.deleteMany();
-    await db.achievement.deleteMany();
-    await db.game.deleteMany();
+
+    // Profile cascades to games, games cascade to achievements
     await db.profile.deleteMany();
 
+    // Reset settings to factory defaults
     const { updateSettings } = await import('./settings');
     updateSettings({
       theme: 'dark',
@@ -347,6 +348,7 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
       language: 'en',
     });
 
+    // Create fresh default profile
     await db.profile.create({ data: { name: 'Default' } });
 
     return { success: true };
