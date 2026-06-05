@@ -1,8 +1,12 @@
-# Backly
+# Backly-Alpha
 
 **Premium Personal Gaming Backlog Tracker**
 
 Backly is a modern desktop application that helps you organize, track, and complete your video game collection. Built with Electron, React, TypeScript, and SQLite.
+
+## Download
+
+[Download the latest Windows installer](https://github.com/thecosyplatypus/Backly-Alpha/releases/latest)
 
 ## Features
 
@@ -32,8 +36,8 @@ Backly is a modern desktop application that helps you organize, track, and compl
 ### Installation
 
 ```bash
-git clone https://github.com/backly/backly.git
-cd backly
+git clone https://github.com/thecosyplatypus/Backly-Alpha.git
+cd Backly-Alpha
 npm install
 ```
 
