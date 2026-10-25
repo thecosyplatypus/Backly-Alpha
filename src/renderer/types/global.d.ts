@@ -18,6 +18,7 @@ export interface BacklyAPI {
   steamLogin: () => Promise<any>;
   steamSync: () => Promise<any>;
   steamStatus: () => Promise<any>;
+  steamSetId: (steamId: string) => Promise<any>;
   steamDisconnect: () => Promise<any>;
   launchSteamGame: (steamAppId: string) => Promise<{ success: boolean }>;
   getBacklogInsights: () => Promise<any[]>;

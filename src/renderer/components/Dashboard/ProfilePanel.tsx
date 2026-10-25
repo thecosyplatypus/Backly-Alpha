@@ -189,15 +189,15 @@ export default function ProfilePanel() {
   const avatar = steamStatus?.avatar;
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const completedGames = stats?.completedGames ?? 0;
-  const nextMilestone = MILESTONES.find(m => m > completedGames) ?? MILESTONES[MILESTONES.length - 1];
-  const prevMilestone = MILESTONES.filter(m => m <= nextMilestone).slice(-2)[0] || 0;
-  const milestoneProgress = nextMilestone > prevMilestone
-    ? ((completedGames - prevMilestone) / (nextMilestone - prevMilestone)) * 100
-    : 0;
-  const progressPercent = Math.min(100, Math.max(0, Math.round(milestoneProgress)));
-  const remaining = Math.max(0, nextMilestone - completedGames);
-  const isMilestoneComplete = completedGames > 0 && MILESTONES.includes(completedGames);
+  const [xp, setXp] = useState(0);
+  useEffect(() => {
+    window.backly.getSettings().then((s: any) => setXp(s?.xp || 0)).catch(() => {});
+  }, []);
+  const level = Math.floor(xp / 500) + 1;
+  const levelXp = xp % 500;
+  const nextLevelXp = 500;
+  const progressPercent = Math.min(100, Math.max(0, Math.round((levelXp / nextLevelXp) * 100)));
+  const remaining = Math.max(0, nextLevelXp - levelXp);
 
   useEffect(() => {
     fetchActivities({ limit: 30 });
@@ -270,22 +270,22 @@ export default function ProfilePanel() {
             <div className="flex items-center gap-1.5">
               <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-gold-500/10 border border-gold-500/10">
                 <BadgeTrophyIcon />
-                <span className="text-[10px] font-bold text-gold-400">Completed</span>
+                <span className="text-[10px] font-bold text-gold-400">Level {level}</span>
               </div>
             </div>
-            <span className="text-[10px] text-gold-400/70 font-medium">{completedGames} / {nextMilestone} Games</span>
+            <span className="text-[10px] text-gold-400/70 font-medium">Level {level} · {xp} XP</span>
           </div>
           <div className="relative w-full h-2.5 bg-surface-800/60 rounded-full overflow-hidden border border-white/[0.03]">
             <div
-              className={`h-full rounded-full bg-gradient-to-r from-gold-600 via-gold-500 to-gold-400 transition-all duration-1000 ease-out relative ${isMilestoneComplete ? 'animate-glow' : ''}`}
+              className={`h-full rounded-full bg-gradient-to-r from-gold-600 via-gold-500 to-gold-400 transition-all duration-1000 ease-out relative `}
               style={{ width: `${progressPercent}%` }}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
             </div>
           </div>
           <div className="flex items-center justify-between mt-1.5">
-            <span className="text-[9px] text-gray-600">{progressPercent}% to next milestone</span>
-            <span className="text-[9px] text-gray-600">{remaining} games remaining</span>
+            <span className="text-[9px] text-gray-600">{progressPercent}% to next level</span>
+            <span className="text-[9px] text-gray-600">{remaining} XP remaining</span>
           </div>
         </div>
       </div>
@@ -329,3 +329,4 @@ export default function ProfilePanel() {
     </aside>
   );
 }
+

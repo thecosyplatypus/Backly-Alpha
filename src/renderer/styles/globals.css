@@ -24,6 +24,14 @@
     @apply bg-gold-500/30 text-white;
   }
 
+  :focus-visible {
+    @apply outline-none ring-2 ring-gold-500/40 ring-offset-2 ring-offset-surface-950;
+  }
+
+  button, a, [role="button"] {
+    @apply transition-colors duration-150;
+  }
+
   /* Fluid typography scaling */
   h1, h2, h3, h4, h5, h6 {
     line-height: 1.1;

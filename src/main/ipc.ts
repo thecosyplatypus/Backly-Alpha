@@ -80,6 +80,14 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
     return { success: false, message: 'No Steam account linked' };
   });
 
+  ipcMain.handle('steam-set-id', async (_event, steamId: string) => {
+    const db = getDatabase();
+    const profile = await db.profile.findFirst();
+    if (!profile) return { success: false, message: 'No profile found' };
+    await db.profile.update({ where: { id: profile.id }, data: { steamId } });
+    return { success: true };
+  });
+
   ipcMain.handle('steam-status', async () => {
     const db = getDatabase();
     const profile = await db.profile.findFirst();

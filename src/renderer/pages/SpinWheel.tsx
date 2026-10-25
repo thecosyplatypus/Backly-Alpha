@@ -45,11 +45,8 @@ function pickEligibleGames(games: any[], filter: string, max: number): any[] {
   return shuffleArray(eligible).slice(0, max);
 }
 
-function getSegmentHsl(index: number): string {
-  const hue = ((index * 18) + 220) % 360;
-  const saturation = 25 + (index % 4) * 8;
-  const lightness = 15 + (index % 3) * 4;
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+function getSegmentHsl(_index: number): string {
+  return '#000000';
 }
 
 const imageCache = new Map<string, HTMLImageElement>();
@@ -129,14 +126,13 @@ export default function SpinWheel() {
 
     const cx = w / 2;
     const cy = h;
+    const R = Math.min(w, h) * 0.85;
+    const iconSize = Math.max(24, R * 0.1);
     const segAngle = ARC / n;
 
     ctx.clearRect(0, 0, w, h);
 
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, w, h);
-
-    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, WHEEL_RADIUS * 1.1);
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.1);
     glow.addColorStop(0, 'rgba(26,26,26,0.3)');
     glow.addColorStop(0.8, 'transparent');
     ctx.fillStyle = glow;
@@ -153,7 +149,7 @@ export default function SpinWheel() {
 
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.arc(0, 0, WHEEL_RADIUS, start, end, false);
+      ctx.arc(0, 0, R, start, end, false);
       ctx.closePath();
 
       ctx.fillStyle = getSegmentHsl(i);
@@ -163,14 +159,14 @@ export default function SpinWheel() {
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      const ix = Math.cos(mid) * ICON_RADIUS;
-      const iy = Math.sin(mid) * ICON_RADIUS;
+      const ix = Math.cos(mid) * (R * 0.77);
+      const iy = Math.sin(mid) * (R * 0.77);
       ctx.save();
       ctx.translate(ix, iy);
       ctx.rotate(mid + Math.PI / 2);
       ctx.fillStyle = '#1a1a1a';
       ctx.beginPath();
-      ctx.arc(0, 0, ICON_SIZE / 2, 0, Math.PI * 2);
+      ctx.arc(0, 0, iconSize / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = 'rgba(250,204,21,0.12)';
@@ -182,26 +178,26 @@ export default function SpinWheel() {
       if (cached && cached.complete && cached.naturalWidth > 0) {
         ctx.save();
         ctx.beginPath();
-        ctx.arc(0, 0, ICON_SIZE / 2 - 1, 0, Math.PI * 2);
+        ctx.arc(0, 0, iconSize / 2 - 1, 0, Math.PI * 2);
         ctx.closePath();
         ctx.clip();
-        ctx.drawImage(cached, -ICON_SIZE / 2 + 1, -ICON_SIZE / 2 + 1, ICON_SIZE - 2, ICON_SIZE - 2);
+        ctx.drawImage(cached, -iconSize / 2 + 1, -iconSize / 2 + 1, iconSize - 2, iconSize - 2);
         ctx.restore();
       } else {
         ctx.fillStyle = 'rgba(250,204,21,0.3)';
-        ctx.font = `bold ${ICON_SIZE * 0.4}px sans-serif`;
+        ctx.font = `bold ${iconSize * 0.4}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(game.title.charAt(0).toUpperCase(), 0, 0);
       }
       ctx.restore();
 
-      const tx = Math.cos(mid) * TEXT_RADIUS;
-      const ty = Math.sin(mid) * TEXT_RADIUS;
+      const tx = Math.cos(mid) * (R * 0.93);
+      const ty = Math.sin(mid) * (R * 0.93);
       ctx.save();
       ctx.translate(tx, ty);
       ctx.rotate(mid + Math.PI / 2);
-      ctx.fillStyle = '#e2e8f0';
+      ctx.fillStyle = '#ffffff';
       ctx.font = '600 18px Inter, system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -217,11 +213,11 @@ export default function SpinWheel() {
 
     ctx.restore();
 
-    drawPointer(ctx, cx, cy);
+    drawPointer(ctx, cx, cy, R);
   }, [wheelGames, getCoverUrl]);
 
-  function drawPointer(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
-    const tipY = cy - WHEEL_RADIUS - 15;
+  function drawPointer(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number) {
+    const tipY = cy - R + 25;
 
     ctx.save();
     ctx.shadowColor = 'rgba(250,204,21,0.5)';
@@ -340,12 +336,18 @@ export default function SpinWheel() {
     canvas.height = rect.height * dpr;
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
+    canvas.style.left = '0';
+    canvas.style.top = '0';
+    canvas.style.transform = 'none';
   }, []);
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(() => handleResize());
+    ro.observe(container);
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => ro.disconnect();
   }, [handleResize]);
 
   const handleSpin = useCallback(() => {

@@ -9,6 +9,7 @@ export default function SearchBar() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <input
+          id="global-search"
           type="text"
           placeholder="Search..."
           className="w-full bg-surface-800/50 backdrop-blur-sm border border-white/[0.06] rounded-xl md:rounded-2xl pl-9 md:pl-12 pr-3 md:pr-5 py-2.5 md:py-3.5 text-[11px] md:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gold-500/30 focus:shadow-[0_0_20px_rgba(234,179,8,0.08)] transition-all duration-300"

@@ -10,10 +10,10 @@ const SteamSettings: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await window.electron.settings.get();
-        if (res.success && res.settings.steam_api_key) {
-          setLocalKey(res.settings.steam_api_key);
-          setSavedKey(res.settings.steam_api_key);
+        const res = await window.backly.getSettings();
+        if (res && res.steam_api_key) {
+          setLocalKey(res.steam_api_key);
+          setSavedKey(res.steam_api_key);
         }
       } catch {
         // fallback to localStorage
@@ -29,7 +29,7 @@ const SteamSettings: React.FC = () => {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      await window.electron.settings.set({ steam_api_key: localKey });
+      await window.backly.updateSettings({ steam_api_key: localKey });
       setSavedKey(localKey);
       setHasChanged(false);
     } catch {
@@ -42,7 +42,7 @@ const SteamSettings: React.FC = () => {
 
   const handleClear = async () => {
     try {
-      await window.electron.settings.set({ steam_api_key: '' });
+      await window.backly.updateSettings({ steam_api_key: '' });
     } catch {
       localStorage.removeItem('steamApiKey');
     }
@@ -169,3 +169,4 @@ const SteamSettings: React.FC = () => {
 };
 
 export default SteamSettings;
+

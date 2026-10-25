@@ -15,12 +15,15 @@ export default function Recommendations() {
   }, [activeTab]);
 
   const tabs = [
-    { value: 'all', label: 'All' },
+    { value: 'all', label: 'For You' },
     { value: 'short', label: 'Under 10h' },
     { value: 'close', label: 'Almost Done' },
     { value: 'best', label: 'Best Rated' },
     { value: 'random', label: 'Surprise' },
   ];
+
+  const hero = recommendations[0];
+  const rest = recommendations.slice(1);
 
   const gridStyle = useMemo(() => ({
     display: 'grid',
@@ -32,11 +35,11 @@ export default function Recommendations() {
     <div className="content-area space-y-4 md:space-y-6 resize-transition">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-fluid-lg md:text-2xl font-bold text-gradient">Recommendations</h1>
-          <p className="text-[11px] md:text-sm text-gray-500 mt-0.5">What should you play next?</p>
+          <h1 className="text-fluid-lg md:text-2xl font-bold text-gradient">For You</h1>
+          <p className="text-[11px] md:text-sm text-gray-500 mt-0.5">Personalized picks based on your library</p>
         </div>
         <button onClick={() => fetchRecommendations('random')} className="btn-primary text-[10px] md:text-sm px-3 md:px-5 py-2 md:py-2.5 shrink-0">
-          🎲 Pick
+          🎲 Surprise
         </button>
       </div>
 
@@ -57,7 +60,6 @@ export default function Recommendations() {
         ))}
       </div>
 
-      {/* Recommendations */}
       {recommendations.length === 0 ? (
         <div className="text-center py-12 md:py-20">
           <p className="text-2xl md:text-4xl mb-3 md:mb-4">🎯</p>
@@ -67,58 +69,68 @@ export default function Recommendations() {
           </p>
         </div>
       ) : (
-        <div className="game-grid" style={gridStyle}>
-          {recommendations.map((rec: any) => (
+        <>
+          {/* Hero pick */}
+          {hero && (
             <div
-              key={rec.game.id}
-              className="card flex items-start gap-3 md:gap-4"
+              className="card relative overflow-hidden cursor-pointer group"
+              onClick={() => navigate(`/game/${hero.game.id}`)}
             >
-              <img
-                src={rec.game.coverArt || `https://ui-avatars.com/api/?name=${encodeURIComponent(rec.game.title)}&background=6366f1&color=fff&size=96`}
-                alt={rec.game.title}
-                className="w-10 md:w-16 h-14 md:h-20 rounded-lg object-cover shrink-0"
-                loading="lazy"
-                onError={(e) => { if (!e.currentTarget.src.includes('ui-avatars')) e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(rec.game.title)}&background=6366f1&color=fff&size=96`; }}
-              />
-              <div className="flex-1 min-w-0">
-                <h3 className="text-[11px] md:text-sm font-semibold text-white truncate">{rec.game.title}</h3>
-                <p className="text-[9px] md:text-xs text-gray-500 mt-0.5">{rec.game.genre || '—'}</p>
-                <p className="text-[10px] md:text-xs text-backly-400 mt-1.5 md:mt-2">{rec.reason}</p>
-                <div className="flex items-center gap-1.5 md:gap-2 mt-1.5 md:mt-2">
-                  {rec.game.hoursPlayed > 0 && (
-                    <span className="text-[9px] md:text-xs text-gray-500">{Math.round(rec.game.hoursPlayed)}h played</span>
+              <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+                <img
+                  src={hero.game.coverArt || `https://ui-avatars.com/api/?name=${encodeURIComponent(hero.game.title)}&background=6366f1&color=fff&size=256`}
+                  alt={hero.game.title}
+                  className="w-full md:w-48 h-40 md:h-64 rounded-xl object-cover shrink-0"
+                  loading="lazy"
+                />
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                  <span className="text-[9px] md:text-[10px] uppercase tracking-widest text-gold-400 font-bold mb-1">Top Pick for You</span>
+                  <h2 className="text-fluid-xl md:text-3xl font-black text-white mb-1">{hero.game.title}</h2>
+                  <p className="text-[11px] md:text-sm text-gray-400 mb-3">{hero.game.genre || '—'}{hero.game.platform ? ` · ${hero.game.platform}` : ''}</p>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gold-500/10 border border-gold-500/20 text-gold-400 text-[11px] md:text-sm font-medium w-fit" title="Why this?">
+                    {hero.reason}
+                  </div>
+                  {hero.game.hoursPlayed > 0 && (
+                    <p className="text-[10px] md:text-xs text-gray-500 mt-3">{Math.round(hero.game.hoursPlayed)}h played so far</p>
                   )}
                 </div>
-                <button
-                  onClick={() => navigate(`/game/${rec.game.id}`)}
-                  className="text-[10px] md:text-xs text-backly-400 hover:text-backly-300 mt-1.5 md:mt-2 inline-block"
-                >
-                  View Details →
-                </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* Tips */}
-      <div className="card mt-4 md:mt-6">
-        <h2 className="text-[11px] md:text-sm font-semibold text-white mb-3 md:mb-4">Smart Tips</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 resize-transition">
-          {[
-            { title: 'Quick Wins', desc: 'Games under 5h', icon: '⚡' },
-            { title: 'Almost There', desc: "90%+ complete", icon: '🎯' },
-            { title: 'Hidden Gems', desc: 'Highly rated, unplayed', icon: '💎' },
-            { title: 'Clean Up', desc: 'Untouched for a year', icon: '🧹' },
-          ].map((tip, i) => (
-            <div key={i} className="bg-surface-800/50 rounded-lg p-2.5 md:p-3">
-              <span className="text-lg md:text-xl">{tip.icon}</span>
-              <h3 className="text-[11px] md:text-sm font-medium text-white mt-1.5 md:mt-2">{tip.title}</h3>
-              <p className="text-[9px] md:text-xs text-gray-500 mt-0.5 md:mt-1">{tip.desc}</p>
+          {/* More picks */}
+          {rest.length > 0 && (
+            <div>
+              <h2 className="text-[11px] md:text-sm font-semibold text-white mb-3">More recommendations</h2>
+              <div className="game-grid" style={gridStyle}>
+                {rest.map((rec: any) => (
+                  <div
+                    key={rec.game.id}
+                    className="card flex items-start gap-3 md:gap-4 cursor-pointer hover:neon-border transition-all"
+                    onClick={() => navigate(`/game/${rec.game.id}`)}
+                  >
+                    <img
+                      src={rec.game.coverArt || `https://ui-avatars.com/api/?name=${encodeURIComponent(rec.game.title)}&background=6366f1&color=fff&size=96`}
+                      alt={rec.game.title}
+                      className="w-10 md:w-16 h-14 md:h-20 rounded-lg object-cover shrink-0"
+                      loading="lazy"
+                      onError={(e) => { if (!e.currentTarget.src.includes('ui-avatars')) e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(rec.game.title)}&background=6366f1&color=fff&size=96`; }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-[11px] md:text-sm font-semibold text-white truncate">{rec.game.title}</h3>
+                      <p className="text-[9px] md:text-xs text-gray-500 mt-0.5">{rec.game.genre || '—'}</p>
+                      <p className="text-[10px] md:text-xs text-backly-400 mt-1.5 md:mt-2" title="Why this?">{rec.reason}</p>
+                      {rec.game.hoursPlayed > 0 && (
+                        <span className="text-[9px] md:text-xs text-gray-500 mt-1 block">{(Math.round(rec.game.hoursPlayed * 10) / 10)}h played</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

@@ -33,9 +33,9 @@ export async function getGames(params?: {
   } else if (params?.status === 'demos') {
     andConditions.push({
       OR: [
-        { title: { contains: ' Demo' } },
-        { title: { contains: ' Playtest' } },
-        { title: { contains: ' Prologue' } },
+        { title: { endsWith: ' Demo' } },
+        { title: { endsWith: ' Playtest' } },
+        { title: { endsWith: ' Prologue' } },
         { title: 'Demo' },
         { title: 'Playtest' },
         { title: 'Prologue' },
@@ -44,21 +44,22 @@ export async function getGames(params?: {
   } else if (params?.status === 'playing-or-recent') {
     const allProfileGames = await db.game.findMany({
       where: { profileId: profile.id },
-      select: { id: true, status: true, steamData: true },
+      select: { id: true, status: true, steamData: true, lastPlayed: true },
     });
+    const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
     const matchedIds = new Set<string>();
     for (const g of allProfileGames) {
-      if (g.status === GameStatus.PLAYING) {
-        matchedIds.add(g.id);
-        continue;
-      }
       if (g.steamData) {
         try {
           const sd = JSON.parse(g.steamData);
           if ((sd.playtime_2weeks || 0) > 0) {
             matchedIds.add(g.id);
+            continue;
           }
         } catch {}
+      }
+      if (g.lastPlayed && new Date(g.lastPlayed).getTime() > twoWeeksAgo) {
+        matchedIds.add(g.id);
       }
     }
     if (matchedIds.size > 0) {
@@ -66,6 +67,9 @@ export async function getGames(params?: {
     } else {
       where.id = { in: [] };
     }
+  } else if (params?.status === GameStatus.BACKLOG) {
+    where.status = GameStatus.BACKLOG;
+    andConditions.push({ totalAchievements: { gt: 0 } });
   } else if (params?.status) {
     where.status = params.status;
   }
@@ -87,15 +91,16 @@ export async function getGames(params?: {
   }
 
 
-  const orderBy: any = {};
+  let orderBy: any;
   switch (params?.sort) {
-    case 'title': orderBy.title = 'asc'; break;
-    case 'recent': orderBy.updatedAt = 'desc'; break;
-    case 'created': orderBy.createdAt = 'desc'; break;
-    case 'rating': orderBy.userRating = 'desc'; break;
-    case 'hours': orderBy.hoursPlayed = 'desc'; break;
-    case 'hours_asc': orderBy.hoursPlayed = 'asc'; break;
-    default: orderBy.updatedAt = 'desc';
+    case 'title': orderBy = { title: 'asc' }; break;
+    case 'recent': orderBy = { updatedAt: 'desc' }; break;
+    case 'created': orderBy = { createdAt: 'desc' }; break;
+    case 'rating': orderBy = { userRating: 'desc' }; break;
+    case 'hours': orderBy = { hoursPlayed: 'desc' }; break;
+    case 'hours_asc': orderBy = { hoursPlayed: 'asc' }; break;
+    case 'lastPlayed': orderBy = [{ lastPlayed: 'desc' }, { updatedAt: 'desc' }]; break;
+    default: orderBy = { updatedAt: 'desc' };
   }
 
   const [games, total] = await Promise.all([
@@ -105,7 +110,7 @@ export async function getGames(params?: {
       take: params?.limit || 100,
       skip: params?.offset || 0,
       select: { id: true, title: true, slug: true, status: true, genre: true,
-        platform: true, hoursPlayed: true, userRating: true, isFavourite: true,
+        platform: true, hoursPlayed: true, estimatedHours: true, userRating: true, isFavourite: true,
         coverArt: true, banner: true, steamAppId: true, steamData: true,
         totalAchievements: true, unlockedAchievements: true, completionPercentage: true,
         developer: true, publisher: true, completionDate: true,
@@ -246,7 +251,7 @@ export async function getDashboardStats() {
 
   const allGames = await db.game.findMany({
     where: { profileId: profile.id },
-    select: { status: true, genre: true, hoursPlayed: true, completionDate: true, isFavourite: true },
+    select: { status: true, genre: true, hoursPlayed: true, estimatedHours: true, completionDate: true, isFavourite: true, unlockedAchievements: true },
   });
 
   const now = new Date();
@@ -270,11 +275,12 @@ export async function getDashboardStats() {
     .slice(0, 5)
     .map(([genre, hours]) => ({ genre, hours: Math.round(hours) }));
 
-  const totalBacklogEstimate = Math.round(backlogGames.length * 15);
+  const totalBacklogEstimate = Math.round(backlogGames.reduce((sum, g) => sum + (g.estimatedHours && g.estimatedHours > 0 ? g.estimatedHours : 15), 0));
   const avgCompletionTime = completedGames.length > 0
     ? Math.round(completedGames.reduce((sum, g) => sum + (g.hoursPlayed || 0), 0) / completedGames.length)
     : 0;
 
+  const totalUnlockedAchievements = allGames.reduce((sum, g: any) => sum + (g.unlockedAchievements || 0), 0);
   return {
     totalGames: allGames.length,
     completedGames: completedGames.length,
@@ -297,6 +303,7 @@ export async function getDashboardStats() {
     droppedCount: allGames.filter(g => g.status === GameStatus.DROPPED).length,
     pausedCount: allGames.filter(g => g.status === GameStatus.PAUSED).length,
     favouriteCount: allGames.filter(g => g.isFavourite).length,
+    unlockedAchievements: totalUnlockedAchievements,
   };
 }
 
@@ -343,7 +350,7 @@ export async function getRecommendations(type?: string) {
 
   const games = await db.game.findMany({
     where: { profileId: profile.id, NOT: { status: GameStatus.COMPLETED } },
-    select: { id: true, title: true, status: true, hoursPlayed: true, userRating: true,
+    select: { id: true, title: true, status: true, hoursPlayed: true, estimatedHours: true, userRating: true,
       genre: true, platform: true, isFavourite: true, slug: true,
       steamData: true, totalAchievements: true, unlockedAchievements: true,
       completionPercentage: true, developer: true, publisher: true,
@@ -366,14 +373,49 @@ export async function getRecommendations(type?: string) {
       break;
     }
     default: {
-      const best = games.filter(g => g.userRating && g.userRating >= 7);
-      best.forEach(g => recommendations.push({ game: g, reason: 'Highly rated — must play!', priority: g.userRating || 0 }));
-      const mostPlayed = [...games].sort((a, b) => (b.hoursPlayed || 0) - (a.hoursPlayed || 0)).slice(0, 5);
-      mostPlayed.forEach(g => {
+      // Almost done — high completion, not finished
+      const almostDone = games
+        .filter(g => (g.completionPercentage || 0) >= 70 && (g.completionPercentage || 0) < 100 && (g.hoursPlayed || 0) > 0)
+        .sort((a, b) => (b.completionPercentage || 0) - (a.completionPercentage || 0))
+        .slice(0, 4);
+      almostDone.forEach(g => recommendations.push({ game: g, reason: `Almost done — ${Math.round(g.completionPercentage || 0)}% complete`, priority: 90 + (g.completionPercentage || 0) }));
+
+      // Hidden gems — highly rated but barely played
+      const hiddenGems = games
+        .filter(g => (g.userRating || 0) >= 8 && (g.hoursPlayed || 0) < 5)
+        .sort((a, b) => (b.userRating || 0) - (a.userRating || 0))
+        .slice(0, 4);
+      hiddenGems.forEach(g => {
         if (!recommendations.find(r => r.game.id === g.id)) {
-          recommendations.push({ game: g, reason: `You've played ${Math.round(g.hoursPlayed)}h — keep going!`, priority: g.hoursPlayed });
+          recommendations.push({ game: g, reason: `Hidden gem — rated ${g.userRating}/10, barely touched`, priority: 80 + (g.userRating || 0) });
         }
       });
+
+      // Quick wins — short backlog games
+      const quickWins = games
+        .filter(g => (g.hoursPlayed || 0) === 0 && g.status === GameStatus.BACKLOG)
+        .sort((a, b) => ((a.estimatedHours || 15) - (b.estimatedHours || 15)))
+        .slice(0, 4);
+      quickWins.forEach(g => {
+        if (!recommendations.find(r => r.game.id === g.id)) {
+          const est = g.estimatedHours && g.estimatedHours > 0 ? Math.round(g.estimatedHours) : 15;
+          recommendations.push({ game: g, reason: `Quick win — ~${est}h to beat`, priority: 70 - est });
+        }
+      });
+
+      // Highly rated — must play
+      const best = games.filter(g => (g.userRating || 0) >= 7);
+      best.forEach(g => {
+        if (!recommendations.find(r => r.game.id === g.id)) {
+          recommendations.push({ game: g, reason: 'Highly rated — must play!', priority: (g.userRating || 0) * 5 });
+        }
+      });
+
+      // Fallback — random picks if nothing else
+      if (recommendations.length === 0 && games.length > 0) {
+        const shuffled = [...games].sort(() => Math.random() - 0.5).slice(0, 5);
+        shuffled.forEach(g => recommendations.push({ game: g, reason: 'Give it a try!', priority: 10 }));
+      }
       break;
     }
   }
@@ -388,7 +430,7 @@ export async function getBacklogHealth() {
 
   const allGames = await db.game.findMany({
     where: { profileId: profile.id },
-    select: { status: true, hoursPlayed: true },
+    select: { status: true, hoursPlayed: true, estimatedHours: true },
   });
   const total = allGames.length;
   if (total === 0) {
@@ -475,7 +517,7 @@ export async function getCloseToCompletion() {
       NOT: { status: GameStatus.COMPLETED },
       hoursPlayed: { gt: 0 },
     },
-    select: { id: true, title: true, status: true, hoursPlayed: true,
+    select: { id: true, title: true, status: true, hoursPlayed: true, estimatedHours: true,
       genre: true, platform: true, isFavourite: true, slug: true,
       steamData: true, totalAchievements: true, unlockedAchievements: true,
       completionPercentage: true, developer: true, publisher: true,
@@ -485,8 +527,8 @@ export async function getCloseToCompletion() {
   return games
     .map(g => ({
       game: g,
-      progress: Math.min(100, Math.round((g.hoursPlayed / 50) * 100)),
-      estimatedRemaining: Math.max(0, 50 - g.hoursPlayed),
+      progress: Math.min(100, Math.round((g.hoursPlayed / (g.estimatedHours && g.estimatedHours > 0 ? g.estimatedHours : 50)) * 100)),
+      estimatedRemaining: Math.max(0, (g.estimatedHours && g.estimatedHours > 0 ? g.estimatedHours : 50) - g.hoursPlayed),
     }))
     .sort((a, b) => b.progress - a.progress)
     .slice(0, 6);
@@ -633,6 +675,7 @@ export async function syncSteamAchievements(
 
         if (!achievements || achievements.length === 0) {
           onProgress?.(index + 1, games.length, `${game.title} — no achievements`);
+          await db.game.update({ where: { id: game.id }, data: { status: GameStatus.NO_ACHIEVEMENTS } });
           skipped++;
           return;
         }
@@ -741,7 +784,7 @@ export async function getWeeklyActivity() {
   });
 
   const now = Date.now();
-  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now - 14 * 24 * 60 * 60 * 1000);
 
   let weeklyHours = 0;
   const recentlyPlayedTitles: string[] = [];
@@ -771,33 +814,41 @@ export async function getWeeklyActivity() {
   }
   const gamesPlayed = recentlyPlayedTitles.length;
 
-  const activities = await db.activity.findMany({
-    where: { profileId: profile.id, createdAt: { gte: sevenDaysAgo } },
-    select: { createdAt: true, type: true, gameTitle: true },
-    orderBy: { createdAt: 'asc' },
-  });
-
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const dayActivityCount: Record<string, number> = {};
-  for (const day of dayNames) dayActivityCount[day] = 0;
-
-  for (const activity of activities) {
-    const dayName = dayNames[new Date(activity.createdAt).getDay()];
-    dayActivityCount[dayName]++;
-  }
-
-  const totalActivities = Object.values(dayActivityCount).reduce((a, b) => a + b, 0);
   const dailyHours: Record<string, { hours: number; games: number }> = {};
+  for (const day of dayNames) dailyHours[day] = { hours: 0, games: 0 };
 
-  for (const day of dayNames) {
-    if (totalActivities > 0) {
-      const weight = dayActivityCount[day] / totalActivities;
-      dailyHours[day] = {
-        hours: Math.round(weeklyHours * weight * 10) / 10,
-        games: Math.round(gamesPlayed * weight),
-      };
-    } else {
-      dailyHours[day] = { hours: 0, games: 0 };
+  for (const game of games) {
+    let playedRecently = false;
+    let hours = 0;
+
+    if (game.steamData) {
+      try {
+        const steamData = JSON.parse(game.steamData);
+        const pt2w = steamData.playtime_2weeks || 0;
+        if (pt2w > 0) {
+          playedRecently = true;
+          hours = pt2w / 60;
+        }
+      } catch {}
+    }
+
+    if (!playedRecently && game.lastPlayed && new Date(game.lastPlayed).getTime() > sevenDaysAgo.getTime()) {
+      playedRecently = true;
+      hours = Math.min(game.hoursPlayed || 0, 2);
+    }
+
+    if (playedRecently) {
+      let dayIndex = new Date().getDay();
+      if (game.lastPlayed) {
+        const lp = new Date(game.lastPlayed);
+        if (lp.getTime() > sevenDaysAgo.getTime()) {
+          dayIndex = lp.getDay();
+        }
+      }
+      const day = dayNames[dayIndex];
+      dailyHours[day].hours = Math.round((dailyHours[day].hours + hours) * 10) / 10;
+      dailyHours[day].games += 1;
     }
   }
 

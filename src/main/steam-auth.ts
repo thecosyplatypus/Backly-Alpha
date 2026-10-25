@@ -1,5 +1,6 @@
 import axios from 'axios';
 import crypto from 'crypto';
+import http from 'http';
 import { BrowserWindow } from 'electron';
 import { getDatabase } from './database';
 import { GameStatus } from '../shared/types';
@@ -8,11 +9,13 @@ import { createActivity } from './activity-service';
 const STEAM_LOGIN_URL = 'https://steamcommunity.com/openid/login';
 
 export function getSteamApiKey(): string {
-  const key = Buffer.from('0ecb374421123c6dbc1a5848a5241d9f3fc95a5d69b7e14781b884a504d59944', 'hex');
-  const iv = Buffer.from('4a4a0eee6d5e36e58115a1f149ce66d9', 'hex');
-  const encrypted = '834f2a5fe866252a383ea379888ce62e668bfaefe411894a6e3089c83829133f14a5a6795349e8abf06853e1d254e728';
-  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-  return decipher.update(encrypted, 'hex', 'utf8') + decipher.final('utf8');
+  try {
+    const { getSettings } = require('./settings');
+    const s = getSettings();
+    if (s?.steam_api_key) return s.steam_api_key;
+    if (s?.steamApiKey) return s.steamApiKey;
+  } catch {}
+  return 'CF91F8EB373CA48260EE2C21E33D13B1';
 }
 
 function getBaseUrl(): string {
@@ -20,14 +23,14 @@ function getBaseUrl(): string {
 }
 
 export const steamAuth = {
-  getAuthUrl(): string {
-    const baseUrl = getBaseUrl();
-    const returnUrl = `${baseUrl}/steam-callback`;
+  getAuthUrl(baseUrl?: string): string {
+    const base = baseUrl || getBaseUrl();
+    const returnUrl = `${base}/steam-callback`;
     const params = new URLSearchParams({
       'openid.ns': 'http://specs.openid.net/auth/2.0',
       'openid.mode': 'checkid_setup',
       'openid.return_to': returnUrl,
-      'openid.realm': baseUrl,
+      'openid.realm': base,
       'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
       'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
     });
@@ -35,88 +38,48 @@ export const steamAuth = {
   },
 
   async authenticate(mainWindow?: BrowserWindow | null): Promise<{ steamId: string } | null> {
-    const authWindow = new BrowserWindow({
-      width: 800,
-      height: 700,
-      title: 'Steam Login',
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-      },
-    });
-
-    const baseUrl = getBaseUrl();
-    const filter = { urls: [`${baseUrl}/steam-callback*`] };
-    const ses = authWindow.webContents.session;
-
-    const handleBeforeRequest: any = (details: any, callback: any) => {
-      const url = details.url;
-      if (url.includes('steam-callback')) {
-        const parsed = new URL(url);
-        const claimedId = parsed.searchParams.get('openid.claimed_id');
-        if (claimedId) {
-          const steamId = claimedId.split('/').pop();
-          if (steamId) {
-            setImmediate(() => {
-              authWindow.close();
-              resolvePromise({ steamId });
-            });
-          }
-        }
-        callback({ cancel: true });
-        return;
-      }
-      callback({});
-    };
-
-    ses.webRequest.onBeforeRequest(filter, handleBeforeRequest);
-
-    let resolvePromise: (value: { steamId: string } | null) => void;
-    const authPromise = new Promise<{ steamId: string } | null>((resolve) => {
-      resolvePromise = resolve;
-
-      const handleRedirect = (_event: any, url: string) => {
-        if (url.includes('steam-callback')) {
-          const parsed = new URL(url);
+    return new Promise<{ steamId: string } | null>((resolve) => {
+      let authWindow: BrowserWindow | null = null;
+      const server = http.createServer((req, res) => {
+        const url = req.url || '';
+        if (url.startsWith('/steam-callback')) {
+          const parsed = new URL(url, 'http://localhost');
           const claimedId = parsed.searchParams.get('openid.claimed_id');
-          if (claimedId) {
-            const steamId = claimedId.split('/').pop();
-            if (steamId) {
-              authWindow.close();
-              resolve({ steamId });
-            }
-          }
+          const steamId = claimedId ? claimedId.split('/').pop() : null;
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end('<html><body><h2>Login successful. You can close this window.</h2></body></html>');
+          try { authWindow?.close(); } catch {}
+          server.close();
+          if (steamId) resolve({ steamId });
+          else resolve(null);
+        } else {
+          res.writeHead(404);
+          res.end();
         }
-      };
+      });
 
-      const handleNavigate = (_event: any, url: string) => {
-        if (url.includes('steam-callback')) {
-          const parsed = new URL(url);
-          const claimedId = parsed.searchParams.get('openid.claimed_id');
-          if (claimedId) {
-            const steamId = claimedId.split('/').pop();
-            if (steamId) {
-              authWindow.close();
-              resolve({ steamId });
-            }
-          }
-        }
-      };
+      server.listen(0, 'localhost', () => {
+        const port = (server.address() as any).port;
+        const baseUrl = `http://localhost:${port}`;
 
-      authWindow.webContents.on('will-redirect', handleRedirect);
-      authWindow.webContents.on('will-navigate', handleNavigate);
+        authWindow = new BrowserWindow({
+          width: 800,
+          height: 700,
+          title: 'Steam Login',
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+          },
+        });
 
-      authWindow.on('closed', () => {
-        ses.webRequest.onBeforeRequest(null);
-        try { authWindow.webContents.removeListener('will-redirect', handleRedirect); } catch {}
-        try { authWindow.webContents.removeListener('will-navigate', handleNavigate); } catch {}
-        resolve(null);
+        authWindow.on('closed', () => {
+          try { server.close(); } catch {}
+          resolve(null);
+        });
+
+        authWindow.loadURL(this.getAuthUrl(baseUrl));
       });
     });
-
-    authWindow.loadURL(this.getAuthUrl());
-
-    return authPromise;
   },
 };
 
@@ -262,8 +225,8 @@ export async function fetchSteamAppDetailsBatch(
   onProgress?: (done: number, total: number) => void
 ): Promise<Map<string, SteamAppDetails>> {
   const details = new Map<string, SteamAppDetails>();
-  const CONCURRENCY = 5;
-  const BATCH_DELAY_MS = 300;
+  const CONCURRENCY = 12;
+  const BATCH_DELAY_MS = 100;
   let completed = 0;
 
   for (let i = 0; i < appIds.length; i += CONCURRENCY) {
@@ -354,8 +317,15 @@ export async function syncSteamLibrary(
     });
     const existingMap = new Map(existingGames.map(g => [g.steamAppId, g]));
 
-    onProgress?.(0, total, 'Fetching game metadata from Steam store...');
-    const metadataMap = await fetchSteamAppDetailsBatch(allAppIds, (done, totalApps) => {
+    const metadataAppIds = steamGames
+      .map((g: any) => g.appid.toString())
+      .filter((id: string) => {
+        const existing = existingMap.get(id);
+        return !existing || !existing.genre;
+      });
+
+    onProgress?.(0, total, `Fetching game metadata from Steam store (${metadataAppIds.length} needed)...`);
+    const metadataMap = await fetchSteamAppDetailsBatch(metadataAppIds, (done, totalApps) => {
       onProgress?.(done, total, `Fetching metadata (${done}/${totalApps})...`);
     });
 
@@ -450,16 +420,23 @@ export async function syncSteamLibrary(
     return { success: true, message: `Imported ${imported} new games, updated ${updated}`, imported, updated, errors };
   } catch (error: any) {
     console.error('Steam sync failed:', error);
-    onProgress?.(0, 0, `Sync failed: ${error.message}`);
+    const status = error?.response?.status;
+    let message = error?.message || 'Unknown error';
+    if (status === 403) {
+      message = 'Steam profile game details are private. Set your Steam profile (Game details) to Public in Steam Privacy Settings, then retry.';
+    } else if (status === 401) {
+      message = 'Invalid Steam API key. Check Settings > Steam Integration.';
+    }
+    onProgress?.(0, 0, `Sync failed: ${message}`);
     await db.syncLog.create({
       data: {
         action: 'steam_sync',
         source: 'steam',
         status: 'error',
-        message: error.message,
+        message,
         details: JSON.stringify({ stack: error.stack }),
       },
     });
-    return { success: false, message: error.message, imported: 0, updated: 0, errors: 1 };
+    return { success: false, message, imported: 0, updated: 0, errors: 1 };
   }
 }

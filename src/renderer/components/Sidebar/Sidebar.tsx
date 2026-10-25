@@ -92,7 +92,6 @@ function LogoutIcon() {
 const navItems = [
   { path: '/', label: 'Home', icon: HomeIcon },
   { path: '/library', label: 'Library', icon: LibraryIcon },
-  { path: '/recommendations', label: 'Suggestions', icon: PlayingIcon },
   { path: '/spin-wheel', label: 'Spin Wheel', icon: WheelIcon },
   { path: '/settings', label: 'Settings', icon: SettingsIcon },
 ];

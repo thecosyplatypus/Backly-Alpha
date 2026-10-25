@@ -273,6 +273,7 @@ export default function SteamSyncCard() {
   const [logsExpanded, setLogsExpanded] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [manualSteamId, setManualSteamId] = useState('');
   const cancelRef = useRef(false);
   const startTimeRef = useRef<number>(0);
   const cleanupRef = useRef<(() => void) | undefined>(undefined);
@@ -420,6 +421,20 @@ export default function SteamSyncCard() {
       setShowRetry(true);
     }
   }, [steamSync, steamLogin, steamStatus, clearSyncResult]);
+
+  const handleManualConnect = useCallback(async () => {
+    if (!manualSteamId.trim()) return;
+    clearSyncResult();
+    setSyncState('connecting');
+    try {
+      await window.backly.steamSetId(manualSteamId.trim());
+      await loadSteamStatus();
+      await steamSync();
+    } catch (err: any) {
+      setSyncState('error');
+      setShowRetry(true);
+    }
+  }, [manualSteamId, steamSync, loadSteamStatus, clearSyncResult]);
 
   const handleCancel = useCallback(() => {
     cancelRef.current = true;
@@ -727,7 +742,25 @@ export default function SteamSyncCard() {
                 </span>
               </div>
             ) : (
-              <p className="text-[11px] text-gray-500">No Steam account connected</p>
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[11px] text-gray-500">No Steam account connected</p>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={manualSteamId}
+                    onChange={(e) => setManualSteamId(e.target.value)}
+                    placeholder="Steam ID (64-bit)"
+                    className="px-2 py-1 rounded bg-surface-800 border border-white/[0.06] text-[10px] text-white w-40"
+                  />
+                  <button
+                    onClick={handleManualConnect}
+                    disabled={!manualSteamId.trim() || isActive}
+                    className="px-2 py-1 rounded bg-gold-500/20 text-gold-400 text-[10px] font-medium hover:bg-gold-500/30 disabled:opacity-50"
+                  >
+                    Connect ID
+                  </button>
+                </div>
+              </div>
             )}
 
             <div className="flex items-center gap-2">

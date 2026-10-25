@@ -61,6 +61,13 @@ export default function GameDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [achData, setAchData] = useState<any>(null);
   const [achLoading, setAchLoading] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
+  const [tracking, setTracking] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const trackingStartRef = useRef<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const gameIdRef = useRef<string | null>(null);
+  const hoursRef = useRef<number>(0);
   const updateGame = useGameStore(s => s.updateGame);
   const mountedRef = useRef(true);
 
@@ -71,6 +78,8 @@ export default function GameDetailPage() {
     window.backly.getGameById(id).then((g) => {
       if (!mountedRef.current) return;
       setGame(g);
+      gameIdRef.current = g?.id || null;
+      hoursRef.current = g?.hoursPlayed || 0;
       setLoading(false);
     }).catch((err) => {
       if (!mountedRef.current) return;
@@ -96,6 +105,15 @@ export default function GameDetailPage() {
     if (!game) return;
     await updateGame(game.id, { status });
     setGame({ ...game, status });
+    if (status === GameStatus.COMPLETED) {
+      setCelebrating(true);
+      setTimeout(() => setCelebrating(false), 4000);
+      try {
+        const s = await window.backly.getSettings();
+        const xp = (s?.xp || 0) + 100;
+        await window.backly.updateSettings({ xp });
+      } catch {}
+    }
   };
 
   const handleRatingChange = async (rating: number) => {
@@ -109,6 +127,48 @@ export default function GameDetailPage() {
     await updateGame(game.id, { isFavourite: !game.isFavourite });
     setGame({ ...game, isFavourite: !game.isFavourite });
   };
+
+  const stopTracking = async () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    const start = trackingStartRef.current;
+    if (start && game) {
+      const hoursAdded = (Date.now() - start) / 3600000;
+      const newHours = (game.hoursPlayed || 0) + hoursAdded;
+      const now = new Date().toISOString();
+      await updateGame(game.id, { hoursPlayed: newHours, lastPlayed: now });
+      setGame({ ...game, hoursPlayed: newHours, lastPlayed: now });
+      hoursRef.current = newHours;
+    }
+    trackingStartRef.current = null;
+    setTracking(false);
+    setElapsed(0);
+  };
+
+  const startTracking = () => {
+    trackingStartRef.current = Date.now();
+    setTracking(true);
+    setElapsed(0);
+    timerRef.current = setInterval(() => {
+      if (trackingStartRef.current) {
+        setElapsed((Date.now() - trackingStartRef.current) / 1000);
+      }
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      const start = trackingStartRef.current;
+      if (start && gameIdRef.current) {
+        const hoursAdded = (Date.now() - start) / 3600000;
+        window.backly.updateGame(gameIdRef.current, {
+          hoursPlayed: hoursRef.current + hoursAdded,
+          lastPlayed: new Date().toISOString(),
+        }).catch(() => {});
+      }
+    };
+  }, []);
 
   const achTotal = achData?.totalAchievements ?? 0;
   const achUnlocked = achData?.unlockedAchievements ?? 0;
@@ -160,6 +220,7 @@ export default function GameDetailPage() {
   }
 
   return (
+    <>
     <div className="content-area space-y-4 md:space-y-6 page-transition resize-transition">
       {/* Hero */}
       <div className={`relative rounded-xl overflow-hidden h-36 md:h-48 lg:h-64 ${isFullyComplete ? 'ring-1 ring-green-500/20' : ''}`}>
@@ -227,13 +288,81 @@ export default function GameDetailPage() {
           {/* Playtime */}
           <div className="card">
             <h2 className="text-[11px] md:text-sm font-semibold text-white mb-2 md:mb-3">Playtime</h2>
-            <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex items-center gap-3 md:gap-4 flex-wrap">
               <p className="text-[11px] md:text-sm text-gray-300">
-                <span className="text-white font-semibold">{Math.round(game.hoursPlayed)}h</span> played
+                <span className="text-white font-semibold">{(Math.round(game.hoursPlayed * 10) / 10)}h</span> played
               </p>
+              {game.estimatedHours ? (
+                <div className="w-full mt-1">
+                  <div className="flex items-center justify-between text-[10px] md:text-xs text-gray-400 mb-1">
+                    <span>of ~{Math.round(game.estimatedHours)}h to 100%</span>
+                    <span>{Math.max(0, Math.round(game.estimatedHours - game.hoursPlayed))}h left</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-surface-700/50 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-gold-500 to-yellow-400 transition-all duration-500"
+                      style={{ width: `${Math.min(100, (game.hoursPlayed / game.estimatedHours) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
               {game.steamAppId && (
                 <PlayButton steamAppId={game.steamAppId} gameTitle={game.title} />
               )}
+              <button
+                onClick={tracking ? stopTracking : startTracking}
+                className={`px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-medium transition-colors border border-white/[0.06] ${
+                  tracking
+                    ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30'
+                    : 'bg-surface-800 hover:bg-surface-700 text-gray-300'
+                }`}
+              >
+                {tracking ? `Stop (${Math.floor(elapsed / 60)}:${String(Math.floor(elapsed % 60)).padStart(2, '0')})` : 'Start session'}
+              </button>
+              <button
+                onClick={async () => {
+                  const now = new Date().toISOString();
+                  await updateGame(game.id, { lastPlayed: now });
+                  setGame({ ...game, lastPlayed: now });
+                }}
+                className="px-3 py-1.5 rounded-lg bg-surface-800 hover:bg-surface-700 text-gray-300 text-[10px] md:text-xs font-medium transition-colors border border-white/[0.06]"
+                title="Mark as played today"
+              >
+                Mark as played
+              </button>
+              <div className="flex items-center gap-2 w-full mt-1">
+                <label className="text-[10px] md:text-xs text-gray-500 shrink-0">Est. hours to 100%:</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={game.estimatedHours ?? ''}
+                  onChange={async (e) => {
+                    const val = e.target.value === '' ? null : Number(e.target.value);
+                    await updateGame(game.id, { estimatedHours: val });
+                    setGame({ ...game, estimatedHours: val });
+                  }}
+                  placeholder="e.g. 80"
+                  className="input w-20 text-[11px] md:text-sm"
+                />
+                <button
+                  onClick={async () => {
+                    // Auto-estimate: hoursPlayed / completion ratio, or genre default
+                    let est = game.estimatedHours;
+                    if (achData && achData.completionPercentage > 0 && game.hoursPlayed > 0) {
+                      est = Math.round(game.hoursPlayed / (achData.completionPercentage / 100));
+                    } else if (!est) {
+                      est = 40;
+                    }
+                    await updateGame(game.id, { estimatedHours: est });
+                    setGame({ ...game, estimatedHours: est });
+                  }}
+                  className="px-2 py-1 rounded-lg bg-gold-500/20 text-gold-400 text-[10px] md:text-xs font-medium hover:bg-gold-500/30 transition-colors"
+                  title="Auto-estimate from achievement progress (or 40h default)"
+                >
+                  Auto
+                </button>
+              </div>
             </div>
           </div>
 
@@ -531,6 +660,32 @@ export default function GameDetailPage() {
         </div>
       </div>
     </div>
+
+    {celebrating && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+        <div className="relative text-center">
+          <div className="text-6xl md:text-8xl animate-bounce">🎉</div>
+          <h2 className="text-2xl md:text-4xl font-black text-gold-400 mt-4 drop-shadow-lg">Game Completed!</h2>
+          <p className="text-sm md:text-base text-white mt-2">+100 XP — You crushed it!</p>
+        </div>
+        {[...Array(24)].map((_, i) => (
+          <span
+            key={i}
+            className="absolute text-2xl animate-ping"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 0.5}s`,
+              animationDuration: `${1 + Math.random()}s`,
+            }}
+          >
+            ✨
+          </span>
+        ))}
+      </div>
+    )}
+    </>
   );
 }
 

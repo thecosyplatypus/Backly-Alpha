@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '../store/gameStore';
 import SearchBar from '../components/Dashboard/SearchBar';
 import HeroPanel from '../components/Dashboard/HeroPanel';
@@ -10,6 +11,8 @@ import InsightCard from '../components/Dashboard/InsightCard';
 import SteamSyncCard from '../components/ui/SteamSyncCard';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const [xp, setXp] = useState(0);
   const stats = useGameStore(s => s.stats);
   const games = useGameStore(s => s.games);
   const insights = useGameStore(s => s.insights);
@@ -17,16 +20,40 @@ export default function Dashboard() {
   const fetchStats = useGameStore(s => s.fetchStats);
 
   useEffect(() => {
-    fetchGames({ limit: 20, sort: 'recent' });
-    fetchStats();
+    fetchGames({ limit: 100, sort: 'lastPlayed' });
+    fetchStats().then(() => {
+      const st = useGameStore.getState().stats;
+      if (st) {
+        const xp = (st.completedGames || 0) * 100 + (st.unlockedAchievements || 0) * 10;
+        setXp(xp);
+        window.backly.updateSettings({ xp }).catch(() => {});
+      }
+    });
+    window.backly.getSettings().then((s: any) => setXp(s?.xp || 0)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (e.key === '/' && !isInput) {
+        e.preventDefault();
+        document.getElementById('global-search')?.focus();
+      } else if ((e.key === 's' || e.key === 'S') && !isInput && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        navigate('/spin-wheel');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [navigate]);
 
   const recentlyPlayed = useMemo(
     () => games
       .filter(g => g.hoursPlayed > 0)
       .sort((a, b) => {
-        const aTime = a.lastPlayed ? new Date(a.lastPlayed).getTime() : 0;
-        const bTime = b.lastPlayed ? new Date(b.lastPlayed).getTime() : 0;
+        const aTime = a.lastPlayed ? new Date(a.lastPlayed).getTime() : (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
+        const bTime = b.lastPlayed ? new Date(b.lastPlayed).getTime() : (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
         return bTime - aTime;
       })
       .slice(0, 10),
@@ -50,8 +77,8 @@ export default function Dashboard() {
             <span className="text-[10px] md:text-xs text-gray-500 whitespace-nowrap">
               {stats ? `${stats.totalGames} games · ${Math.round(stats.totalHoursPlayed)}h` : ''}
             </span>
-            <div className="w-7 h-7 md:w-8 md:h-8 rounded-xl bg-gradient-to-br from-gold-500/30 to-yellow-500/20 flex items-center justify-center text-[10px] md:text-xs font-bold text-gold-400 border border-gold-500/10">
-              B
+            <div className="w-7 h-7 md:w-8 md:h-8 rounded-xl bg-gradient-to-br from-gold-500/30 to-yellow-500/20 flex items-center justify-center text-[10px] md:text-xs font-bold text-gold-400 border border-gold-500/10" title={`Level ${Math.floor(xp / 500) + 1} · ${xp} XP`}>
+              Lv{Math.floor(xp / 500) + 1}
             </div>
           </div>
         </div>

@@ -38,11 +38,15 @@ export default function SteamImage({ src, appid: propAppid, alt, className = '',
   const altFormats = origFormat ? CDN_FORMATS.filter(f => f !== origFormat) : CDN_FORMATS;
 
   let imageSrc = src;
-  if (failedCount > 0 && appid) {
+  if (failedCount > 0) {
+    if (!appid) {
+      if (fallback) return <img src={fallback} alt={alt} className={className} loading="lazy" referrerPolicy="no-referrer" />;
+      return <Placeholder alt={alt} className={className} />;
+    }
     if (failedCount <= altFormats.length) {
       imageSrc = `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/${altFormats[failedCount - 1]}`;
     } else {
-      if (fallback) return <img src={fallback} alt={alt} className={className} loading="lazy" />;
+      if (fallback) return <img src={fallback} alt={alt} className={className} loading="lazy" referrerPolicy="no-referrer" />;
       return <Placeholder alt={alt} className={className} />;
     }
   }
@@ -59,6 +63,8 @@ export default function SteamImage({ src, appid: propAppid, alt, className = '',
       className={className}
       onError={handleError}
       loading="lazy"
+      referrerPolicy="no-referrer"
+      decoding="async"
     />
   )
 }

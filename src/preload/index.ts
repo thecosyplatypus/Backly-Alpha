@@ -13,6 +13,7 @@ const api = {
   steamLogin: () => ipcRenderer.invoke('steam-login'),
   steamSync: () => ipcRenderer.invoke('steam-sync'),
   steamStatus: () => ipcRenderer.invoke('steam-status'),
+  steamSetId: (steamId: string) => ipcRenderer.invoke('steam-set-id', steamId),
   steamDisconnect: () => ipcRenderer.invoke('steam-disconnect'),
   launchSteamGame: (steamAppId: string) => ipcRenderer.invoke('launch-steam-game', steamAppId),
 

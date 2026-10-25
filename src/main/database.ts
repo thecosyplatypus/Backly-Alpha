@@ -159,6 +159,28 @@ async function runMigrations(prisma: PrismaClient): Promise<void> {
     await ensureColumn(prisma, 'Achievement', 'globalProgress', 'REAL', '0', true);
     await ensureColumn(prisma, 'Achievement', 'iconGrayUrl', 'TEXT', 'NULL', false);
   });
+
+  await runMigration(prisma, 'v1.3.0_estimated_hours', async () => {
+    await ensureColumn(prisma, 'Game', 'estimatedHours', 'REAL', 'NULL', false);
+    await ensureColumn(prisma, 'Game', 'lastPlayed', 'DATETIME', 'NULL', false);
+  });
+
+  await runMigration(prisma, 'v1.4.0_activity_columns', async () => {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Activity" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "type" TEXT NOT NULL,
+        "gameId" TEXT,
+        "gameTitle" TEXT,
+        "icon" TEXT NOT NULL DEFAULT 'default',
+        "description" TEXT NOT NULL,
+        "metadata" TEXT,
+        "profileId" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await ensureColumn(prisma, 'Activity', 'createdAt', 'DATETIME', 'CURRENT_TIMESTAMP', false);
+  });
 }
 
 export async function initDatabase(): Promise<PrismaClient> {

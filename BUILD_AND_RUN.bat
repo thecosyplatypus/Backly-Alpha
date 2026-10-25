@@ -1,5 +1,7 @@
 @echo off
 cd /d "%~dp0"
+taskkill /f /im Backly.exe >nul 2>&1
+timeout /t 1 /nobreak >nul
 echo ========================================
 echo  Backly - Building Desktop App
 echo ========================================

@@ -172,7 +172,7 @@ const listeners = new Map<string, Set<(...args: any[]) => void>>();
     const total = result.length;
     if (params?.offset) result = result.slice(params.offset);
     if (params?.limit) result = result.slice(0, params.limit);
-    if (params?.sort === 'recent') {
+    if (params?.sort === 'recent' || params?.sort === 'lastPlayed') {
       result.sort((a, b) => {
         const aDate = a.lastPlayed || a.updatedAt;
         const bDate = b.lastPlayed || b.updatedAt;

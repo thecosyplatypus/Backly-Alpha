@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -11,13 +11,27 @@ export default function WeeklyChart() {
   } | null>(null);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    window.backly.getWeeklyActivity()
-      .then((d) => { if (!cancelled) setData(d); })
-      .catch((e) => { console.error('[WeeklyChart] fetch error:', e); if (!cancelled) setError(true); });
-    return () => { cancelled = true; };
+  const fetch = useCallback(async () => {
+    try {
+      const d = await window.backly.getWeeklyActivity();
+      setData(d);
+      setError(false);
+    } catch (e) {
+      console.error('[WeeklyChart] fetch error:', e);
+      setError(true);
+    }
   }, []);
+
+  useEffect(() => {
+    fetch();
+    const interval = setInterval(fetch, 60000);
+    const onFocus = () => fetch();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [fetch]);
 
   if (error) {
     return (
@@ -25,8 +39,15 @@ export default function WeeklyChart() {
         <div className="flex items-center justify-between mb-3 md:mb-5">
           <div>
             <h3 className="text-[11px] md:text-sm font-semibold text-white">Weekly Activity</h3>
-            <p className="text-[9px] md:text-xs text-gray-500 mt-0.5">Last 7 days</p>
+            <p className="text-[9px] md:text-xs text-gray-500 mt-0.5">Last 2 weeks</p>
           </div>
+          <button
+            onClick={fetch}
+            className="text-[10px] text-gray-400 hover:text-gold-400 transition-colors"
+            title="Refresh from Steam"
+          >
+            ↻
+          </button>
         </div>
         <p className="text-[10px] md:text-xs text-gray-500">No activity data available</p>
       </div>
@@ -44,10 +65,6 @@ export default function WeeklyChart() {
     );
   }
 
-  const maxHours = Math.max(
-    ...dayNames.map(d => data.dailyHours[d]?.hours || 0),
-    0.1
-  );
   const totalHours = data.totalHours;
 
   return (
@@ -63,29 +80,9 @@ export default function WeeklyChart() {
         </div>
       </div>
 
-      <div className="flex items-stretch gap-1 md:gap-2 h-20 md:h-28">
-        {dayNames.map((day, i) => {
-          const dayData = data.dailyHours[day] || { hours: 0, games: 0 };
-          const heightPercent = (dayData.hours / maxHours) * 100;
-          return (
-            <div key={day} className="flex-1 flex flex-col items-center gap-1 md:gap-1.5 group">
-              <span className="text-[8px] md:text-[10px] text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                {dayData.hours.toFixed(1)}h
-              </span>
-              <div className="flex-1 w-full relative flex items-end justify-center">
-                <div
-                  className="w-full max-w-[20px] md:max-w-[28px] rounded-lg bg-gradient-to-t from-[#F59E0B] to-[#FB923C] hover:from-[#F59E0B] hover:to-[#FB923C] transition-all duration-300 cursor-pointer group-hover:shadow-[0_0_12px_rgba(234,179,8,0.3)]"
-                  style={{
-                    height: `${heightPercent}%`,
-                    animation: `barRise 0.8s ease-out ${i * 0.1}s both`,
-                    transformOrigin: 'bottom',
-                  }}
-                />
-              </div>
-              <span className="text-[8px] md:text-[10px] text-gray-500 font-medium mt-0.5 md:mt-1">{day}</span>
-            </div>
-          );
-        })}
+      <div className="text-center py-4">
+        <p className="text-2xl md:text-3xl font-black text-gold-400">{totalHours.toFixed(1)}h</p>
+        <p className="text-[10px] md:text-xs text-gray-500 mt-1">played in the last 2 weeks</p>
       </div>
 
       <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-white/[0.04]">

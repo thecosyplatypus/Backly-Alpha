@@ -106,7 +106,7 @@ export default function GameCard({ game, onClick, compact }: Props) {
         <div className="absolute bottom-0 left-0 right-0 p-1.5 md:p-2">
           <p className="text-[9px] md:text-[10px] font-medium text-white truncate">{game.title}</p>
           {game.hoursPlayed > 0 && (
-            <p className="text-[8px] md:text-[9px] text-gray-400">{Math.round(game.hoursPlayed)}h</p>
+            <p className="text-[8px] md:text-[9px] text-gray-400">{(Math.round(game.hoursPlayed * 10) / 10)}h</p>
           )}
         </div>
       </button>
@@ -155,7 +155,7 @@ export default function GameCard({ game, onClick, compact }: Props) {
           {game.title}
         </h3>
         <div className="flex items-center gap-1.5 md:gap-2 text-[9px] md:text-[11px] text-gray-500 flex-wrap">
-          {game.hoursPlayed > 0 && <span>{Math.round(game.hoursPlayed)}h</span>}
+          {game.hoursPlayed > 0 && <span>{(Math.round(game.hoursPlayed * 10) / 10)}h</span>}
           {game.genre && <span className="truncate max-w-[80px] md:max-w-[100px]">{game.genre}</span>}
         </div>
 

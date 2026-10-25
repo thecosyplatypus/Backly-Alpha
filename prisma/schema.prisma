@@ -27,6 +27,7 @@ model Game {
   tags              String?
   isFavourite       Boolean       @default(false)
   hoursPlayed       Float         @default(0)
+  estimatedHours    Float?
   completionDate    DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
