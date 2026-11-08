@@ -361,6 +361,25 @@ export default function Settings() {
                 onChange={(v) => updateSettings({ ...settings, startOnBoot: v })}
               />
             </div>
+            <div className="px-4 md:px-6">
+              <ToggleSetting
+                label="Sponsored content"
+                description="Show a sponsored space in the desktop sidebar"
+                checked={settings.adsEnabled}
+                onChange={(v) => updateSettings({ ...settings, adsEnabled: v })}
+              />
+            </div>
+            {settings.adsEnabled && (
+              <div className="px-4 md:px-6 pb-4">
+                <label className="mb-1.5 block text-[11px] text-gray-500">Ad code (HTML or script)</label>
+                <textarea
+                  value={settings.adCode || ''}
+                  onChange={(e) => updateSettings({ ...settings, adCode: e.target.value })}
+                  className="input h-24 w-full resize-none font-mono text-[10px]"
+                  placeholder="Paste your ad provider code here"
+                />
+              </div>
+            )}
           </div>
         </SettingsCard>
         )}

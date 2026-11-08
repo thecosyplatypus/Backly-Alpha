@@ -1,5 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSettingsStore } from '../../store/settingsStore';
+import AdBanner from '../ui/AdBanner';
 
 function HomeIcon() {
   return (
@@ -106,6 +108,7 @@ interface Props {
 export default function Sidebar({ mode, overlayOpen, onToggleOverlay, onCloseOverlay }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
+  const settings = useSettingsStore((s) => s.settings);
 
   const isExpanded = mode === 'expanded';
   const showLabels = isExpanded;
@@ -200,7 +203,8 @@ export default function Sidebar({ mode, overlayOpen, onToggleOverlay, onCloseOve
       </nav>
 
       {/* Bottom section */}
-      <div className={`mt-auto ${showLabels ? 'px-3' : 'px-2.5'} w-full`}>
+      <div className={`mt-auto ${showLabels ? 'px-3' : 'px-2.5'} w-full space-y-2`}>
+        {settings?.adsEnabled && showLabels && <AdBanner placement="sidebar" />}
         <div className="h-px bg-gradient-to-r from-transparent via-gold-500/20 to-transparent mb-2" />
         <button className={`group flex items-center w-full py-2.5 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/[0.04] transition-all duration-200 sidebar-transition ${
           showLabels ? 'px-3 gap-3' : 'flex-col px-2.5'

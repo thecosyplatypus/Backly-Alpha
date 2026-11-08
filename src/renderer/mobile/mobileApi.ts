@@ -46,6 +46,8 @@ const DEFAULT_SETTINGS = {
   minimizeToTray: false,
   startOnBoot: false,
   language: 'en',
+  adsEnabled: false,
+  adCode: null,
   xp: 0,
 };
 

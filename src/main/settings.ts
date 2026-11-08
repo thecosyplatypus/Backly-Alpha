@@ -11,6 +11,8 @@ export let settingsCache: any = {
   minimizeToTray: true,
   startOnBoot: false,
   language: 'en',
+  adsEnabled: false,
+  adCode: null,
 };
 
 function getSettingsPath(): string {
