@@ -5,6 +5,11 @@ import App from './App';
 import SplashScreen from './components/ui/SplashScreen';
 import './styles/globals.css';
 import './devMock';
+import { installMobileApi } from './mobile/mobileApi';
+
+// Electron provides this bridge through its preload script. Capacitor has no
+// preload process, so install the offline mobile implementation instead.
+installMobileApi();
 
 function Root() {
   const [splashDone, setSplashDone] = useState(false);

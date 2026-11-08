@@ -4,6 +4,8 @@ import ProfilePanel from '../Dashboard/ProfilePanel';
 import BackgroundEffects from '../ui/BackgroundEffects';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useGamepadDetection } from '../../hooks/useController';
+import BottomNav from '../../mobile/BottomNav';
+import { isMobileApp } from '../../mobile/platform';
 
 interface Props {
   children: React.ReactNode;
@@ -13,6 +15,7 @@ export default function Layout({ children }: Props) {
   const resp = useResponsive();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const hasGamepad = useGamepadDetection();
+  const mobile = isMobileApp();
 
   const handleToggleOverlay = useCallback(() => {
     setOverlayOpen((prev) => !prev);
@@ -29,7 +32,7 @@ export default function Layout({ children }: Props) {
   }, []);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-surface-950 resize-transition">
+    <div className={`flex h-screen w-screen overflow-hidden bg-surface-950 resize-transition ${mobile ? 'mobile-shell' : ''}`}>
       <BackgroundEffects />
 
       {/* Gamepad indicator */}
@@ -40,15 +43,17 @@ export default function Layout({ children }: Props) {
         </div>
       )}
 
-      <Sidebar
-        mode={resp.sidebarMode}
-        overlayOpen={overlayOpen}
-        onToggleOverlay={handleToggleOverlay}
-        onCloseOverlay={handleCloseOverlay}
-      />
+      {!mobile && (
+        <Sidebar
+          mode={resp.sidebarMode}
+          overlayOpen={overlayOpen}
+          onToggleOverlay={handleToggleOverlay}
+          onCloseOverlay={handleCloseOverlay}
+        />
+      )}
 
       <main
-        className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-hide resize-transition relative z-10"
+        className={`flex-1 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-hide resize-transition relative z-10 ${mobile ? 'mobile-main' : ''}`}
         onClick={resp.sidebarMode === 'overlay' && overlayOpen ? handleCloseOverlay : undefined}
       >
         <div className="page-transition min-h-full">
@@ -56,11 +61,13 @@ export default function Layout({ children }: Props) {
         </div>
       </main>
 
-      {resp.showPanelRight && (
+      {!mobile && resp.showPanelRight && (
         <div className="resize-transition relative z-10">
           <ProfilePanel />
         </div>
       )}
+
+      {mobile && <BottomNav />}
     </div>
   );
 }

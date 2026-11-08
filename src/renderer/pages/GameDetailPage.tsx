@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { GameStatus } from '../../shared/types';
 import SteamImage from '../components/ui/SteamImage';
 import PlayButton from '../components/ui/PlayButton';
+import { isMobileApp } from '../mobile/platform';
 
 const statusStyles: Record<string, { active: string; inactive: string }> = {
   [GameStatus.BACKLOG]: { active: 'bg-gray-600/30 text-gray-400 border border-gray-500/30', inactive: '' },
@@ -56,6 +57,7 @@ function CompletionRingLarge({ pct, size = 100 }: { pct: number; size?: number }
 export default function GameDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const mobile = isMobileApp();
   const [game, setGame] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +71,7 @@ export default function GameDetailPage() {
   const gameIdRef = useRef<string | null>(null);
   const hoursRef = useRef<number>(0);
   const updateGame = useGameStore(s => s.updateGame);
+  const deleteGame = useGameStore(s => s.deleteGame);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -90,7 +93,7 @@ export default function GameDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || mobile) return;
     setAchLoading(true);
     window.backly.getGameAchievements(id).then((result) => {
       if (!mountedRef.current) return;
@@ -169,6 +172,12 @@ export default function GameDetailPage() {
       }
     };
   }, []);
+
+  const handleDelete = async () => {
+    if (!game || !window.confirm(`Delete ${game.title}? This cannot be undone.`)) return;
+    await deleteGame(game.id);
+    navigate('/library');
+  };
 
   const achTotal = achData?.totalAchievements ?? 0;
   const achUnlocked = achData?.unlockedAchievements ?? 0;
@@ -306,7 +315,7 @@ export default function GameDetailPage() {
                   </div>
                 </div>
               ) : null}
-              {game.steamAppId && (
+              {!mobile && game.steamAppId && (
                 <PlayButton steamAppId={game.steamAppId} gameTitle={game.title} />
               )}
               <button
@@ -366,7 +375,8 @@ export default function GameDetailPage() {
             </div>
           </div>
 
-          {/* Achievements Section */}
+          {/* Steam achievements are desktop-only. */}
+          {!mobile && (
           <div className={`card ${isFullyComplete ? 'border-green-500/20' : ''}`}>
             <div className="flex items-center justify-between mb-3 md:mb-4">
               <h2 className={`text-[11px] md:text-sm font-semibold ${isFullyComplete ? 'text-green-400' : 'text-white'}`}>
@@ -519,6 +529,7 @@ export default function GameDetailPage() {
               </>
             )}
           </div>
+          )}
 
           {/* Notes */}
           <div className="card">
@@ -622,7 +633,7 @@ export default function GameDetailPage() {
           </div>
 
           {/* Steam */}
-          {game.steamAppId && (
+          {!mobile && game.steamAppId && (
             <div className="card">
               <div className="flex items-center gap-1.5 md:gap-2 text-[11px] md:text-sm text-gray-400">
                 <span>✓</span>
@@ -656,6 +667,16 @@ export default function GameDetailPage() {
                 </button>
               </div>
             </div>
+          )}
+
+          {mobile && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="w-full rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400"
+            >
+              Delete game
+            </button>
           )}
         </div>
       </div>

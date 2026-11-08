@@ -1,6 +1,17 @@
 node_modules/
 dist/
 release/
+.gradle/
+android/.gradle/
+android/local.properties
+android/build/
+android/app/build/
+android/backly-keystore.properties
+android/backly-upload.jks
+Backly-win32-x64/
+*.zip
+check_weekly*.js
+test_scrape*.mjs
 *.db
 *.db-journal
 .env

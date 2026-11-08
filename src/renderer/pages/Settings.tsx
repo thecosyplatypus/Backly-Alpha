@@ -3,6 +3,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useGameStore } from '../store/gameStore';
 import { useActivityStore } from '../store/activityStore';
 import SteamSyncCard from '../components/ui/SteamSyncCard';
+import { isMobileApp } from '../mobile/platform';
 
 function SteamIcon() {
   return (
@@ -211,15 +212,45 @@ function ToggleSetting({ label, description, checked, onChange }: {
 }
 
 export default function Settings() {
+  const mobile = isMobileApp();
   const settings = useSettingsStore(s => s.settings);
   const updateSettings = useSettingsStore(s => s.updateSettings);
   const handleExport = async () => {
     const data = await window.backly.exportData('json');
+    const fileName = `backly-export-${new Date().toISOString().split('T')[0]}.json`;
+
+    if (mobile) {
+      try {
+        const [{ Filesystem, Directory, Encoding }, { Share }] = await Promise.all([
+          import('@capacitor/filesystem'),
+          import('@capacitor/share'),
+        ]);
+        const file = await Filesystem.writeFile({
+          path: fileName,
+          data,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
+        await Share.share({
+          title: 'Backly backup',
+          text: 'Backly game library backup',
+          url: file.uri,
+          dialogTitle: 'Export Backly backup',
+        });
+      } catch (err: any) {
+        // Cancelling Android's share sheet is not an export failure.
+        if (!/cancel/i.test(err?.message || '')) {
+          alert(`Export failed: ${err?.message || err}`);
+        }
+      }
+      return;
+    }
+
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `backly-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -233,6 +264,10 @@ export default function Settings() {
       if (!file) return;
       const text = await file.text();
       const result = await window.backly.importData(text);
+      await Promise.all([
+        useGameStore.getState().fetchGames(),
+        useGameStore.getState().fetchStats(),
+      ]);
       alert(`Imported ${result.imported} games`);
     };
     input.click();
@@ -265,7 +300,8 @@ export default function Settings() {
           </p>
         </div>
 
-        {/* Steam Integration */}
+        {/* Steam integration requires Electron and is desktop-only. */}
+        {!mobile && (
         <SettingsCard icon={<SteamIcon />} title="Steam Integration">
           <SteamSyncCard />
           <button
@@ -286,8 +322,10 @@ export default function Settings() {
             Refresh metadata for all Steam games
           </button>
         </SettingsCard>
+        )}
 
         {/* General Settings */}
+        {!mobile && (
         <SettingsCard icon={<GearIcon />} title="General">
           <div className="divide-y divide-white/[0.04] -mx-4 md:-mx-6">
             <div className="px-4 md:px-6">
@@ -324,12 +362,15 @@ export default function Settings() {
             </div>
           </div>
         </SettingsCard>
+        )}
 
         {/* Data Management */}
         <SettingsCard icon={<DataIcon />} title="Data Management">
           <div className="space-y-3 md:space-y-4">
             <p className="text-[11px] md:text-sm text-gray-500 leading-relaxed">
-              Export your game library and settings as a JSON file, or import a previously exported backup.
+              {mobile
+                ? 'Your library is stored offline on this device. Export a JSON backup or restore one from Backly.'
+                : 'Export your game library and settings as a JSON file, or import a previously exported backup.'}
             </p>
             <div className="flex items-center gap-2 md:gap-3 flex-wrap">
               <button

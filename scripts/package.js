@@ -47,6 +47,7 @@ async function build() {
       electronVersion: '33.4.11',
       appVersion: '1.0.0',
       executableName: 'Backly',
+      icon: path.resolve(__dirname, '..', 'resources', 'icon.ico'),
       asar: true,
       overwrite: true,
       prune: true,

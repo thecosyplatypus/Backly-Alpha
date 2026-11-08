@@ -6,10 +6,16 @@ let tray: Tray | null = null;
 export function createTray(mainWindow: BrowserWindow | null): void {
   if (tray) return;
 
-  const iconPath = path.join(__dirname, '../../../resources/icon.png');
+  const resourcesDir = path.join(__dirname, '../../../resources');
+  const iconPath = process.platform === 'win32'
+    ? path.join(resourcesDir, 'icon.ico')
+    : path.join(resourcesDir, 'icon.png');
   let icon: Electron.NativeImage;
   try {
     icon = nativeImage.createFromPath(iconPath);
+    if (icon.isEmpty()) {
+      icon = nativeImage.createFromPath(path.join(resourcesDir, 'icon.png'));
+    }
     if (icon.isEmpty()) {
       icon = nativeImage.createEmpty();
     }

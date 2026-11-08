@@ -343,3 +343,98 @@
   from { transform: scaleY(0); }
   to { transform: scaleY(1); }
 }
+
+/* Native Android layout. These classes are only rendered by the mobile build. */
+.mobile-shell {
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-main {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-bottom-nav {
+  position: fixed;
+  z-index: 80;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-height: 66px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 12, 18, 0.96);
+  backdrop-filter: blur(20px);
+}
+
+.mobile-nav-item {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 3px;
+  border-radius: 12px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 600;
+  touch-action: manipulation;
+}
+
+.mobile-nav-item.active {
+  color: #ffd700;
+  background: rgba(245, 196, 0, 0.07);
+}
+
+.mobile-add-fab {
+  position: fixed;
+  z-index: 70;
+  right: 18px;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  color: #0a0c12;
+  background: linear-gradient(135deg, #ffd700, #d4a800);
+  box-shadow: 0 8px 28px rgba(245, 196, 0, 0.3);
+  touch-action: manipulation;
+}
+
+.mobile-add-fab:active {
+  transform: scale(0.94);
+}
+
+.mobile-sheet {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: slideUp 0.25s ease-out;
+}
+
+.mobile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mobile-field > span {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mobile-field .input {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.mobile-field select option {
+  color: #f1f5f9;
+  background: #1a1f2e;
+}

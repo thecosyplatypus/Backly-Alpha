@@ -9,9 +9,11 @@ import BacklogHealth from '../components/Dashboard/BacklogHealth';
 import ShortSessionGames from '../components/Dashboard/ShortSessionGames';
 import InsightCard from '../components/Dashboard/InsightCard';
 import SteamSyncCard from '../components/ui/SteamSyncCard';
+import { isMobileApp } from '../mobile/platform';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const mobile = isMobileApp();
   const [xp, setXp] = useState(0);
   const stats = useGameStore(s => s.stats);
   const games = useGameStore(s => s.games);
@@ -125,8 +127,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Steam Sync */}
-        <SteamSyncCard />
+        {/* Steam sync requires the Electron desktop integration. */}
+        {!mobile && <SteamSyncCard />}
 
         {/* Backlog Health */}
         <BacklogHealth />
@@ -149,8 +151,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Achievements */}
-        <AchievementsPanel />
+        {/* Steam achievements are only available on desktop. */}
+        {!mobile && <AchievementsPanel />}
 
         <div className="h-4" />
       </div>

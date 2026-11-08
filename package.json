@@ -13,6 +13,11 @@
     "build": "npm run build:main && npm run build:renderer",
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
+    "build:mobile": "vite build --mode mobile",
+    "android:sync": "npm run build:mobile && cap sync android",
+    "android:apk": "npm run android:sync && node scripts/android-build.js apk",
+    "android:aab": "npm run android:sync && node scripts/android-build.js aab",
+    "android:open": "cap open android",
     "start": "electron .",
     "dist": "npm run build && node scripts/package.js",
     "postinstall": "prisma generate",
@@ -23,6 +28,10 @@
     "package": "npm run build && node scripts/package.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/share": "^8.0.3",
     "@prisma/client": "^5.22.0",
     "axios": "^1.7.7",
     "dotenv": "^17.4.2",
@@ -32,6 +41,7 @@
     "zustand": "^5.0.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
     "@electron/packager": "^20.0.0",
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
@@ -83,7 +93,7 @@
       "target": [
         "nsis"
       ],
-      "icon": "resources/icon.png"
+      "icon": "resources/icon.ico"
     },
     "mac": {
       "target": [

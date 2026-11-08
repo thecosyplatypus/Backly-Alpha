@@ -18,6 +18,20 @@ app.setPath('cache', path.join(os.tmpdir(), 'backly-cache'));
 
 const isDev = !app.isPackaged;
 
+// Give the app its own identity so Windows groups it separately and uses our
+// icon on the taskbar instead of the default Electron one.
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.backly.app');
+}
+
+const resourcesDir = path.join(__dirname, '../../../resources');
+
+function getAppIcon(): string {
+  const ico = path.join(resourcesDir, 'icon.ico');
+  if (process.platform === 'win32' && fs.existsSync(ico)) return ico;
+  return path.join(resourcesDir, 'icon.png');
+}
+
 let mainWindow: BrowserWindow | null = null;
 let syncInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -28,7 +42,7 @@ function createWindow(): void {
     minWidth: 1024,
     minHeight: 700,
     title: 'Backly',
-    icon: path.join(__dirname, '../../../resources/icon.png'),
+    icon: getAppIcon(),
     backgroundColor: '#0f111a',
     show: false,
     frame: true,

@@ -6,6 +6,8 @@ import GameCard from '../components/GameCard/GameCard';
 import SteamImage from '../components/ui/SteamImage';
 import { useResponsive } from '../hooks/useResponsive';
 import { GameStatus } from '../../shared/types';
+import AddGameSheet from '../mobile/AddGameSheet';
+import { isMobileApp } from '../mobile/platform';
 
 const statusFilters = [
   { value: '', label: 'All' },
@@ -32,6 +34,7 @@ const PAGE_SIZE = 48;
 
 export default function Library() {
   const navigate = useNavigate();
+  const mobile = isMobileApp();
   const games = useGameStore(s => s.games);
   const totalGames = useGameStore(s => s.totalGames);
   const fetchGames = useGameStore(s => s.fetchGames);
@@ -51,6 +54,10 @@ export default function Library() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [favouriteOnly, setFavouriteOnly] = useState(false);
   const [page, setPage] = useState(1);
+  const [showAddGame, setShowAddGame] = useState(false);
+  const availableStatusFilters = mobile
+    ? statusFilters.filter((filter) => filter.value !== 'no-achievements')
+    : statusFilters;
 
   useEffect(() => {
     loadSteamStatus();
@@ -94,7 +101,7 @@ export default function Library() {
           <p className="text-[11px] md:text-sm text-gray-500 mt-0.5">{totalGames} games</p>
         </div>
         <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-          {steamStatus?.isConnected && (
+          {!mobile && steamStatus?.isConnected && (
             <button
               onClick={handleSync}
               disabled={isSyncing}
@@ -160,7 +167,7 @@ export default function Library() {
 
       {/* Status Tabs */}
       <div className="flex gap-1 md:gap-1.5 flex-wrap">
-        {statusFilters.map((f) => (
+        {availableStatusFilters.map((f) => (
           <button
             key={f.value}
             onClick={() => setStatusFilter(f.value)}
@@ -229,7 +236,7 @@ export default function Library() {
           <p className="text-2xl md:text-4xl mb-3 md:mb-4">🎮</p>
           <p className="text-sm md:text-base text-gray-500">No games found</p>
           <p className="text-[11px] md:text-sm text-gray-600 mt-1.5 md:mt-2">
-            {search ? 'Try a different search term' : 'Import from Steam or add games manually'}
+            {search ? 'Try a different search term' : mobile ? 'Tap + to add your first game' : 'Import from Steam or add games manually'}
           </p>
         </div>
       ) : viewMode === 'grid' ? (
@@ -314,6 +321,22 @@ export default function Library() {
             Next →
           </button>
         </div>
+      )}
+
+      {mobile && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowAddGame(true)}
+            className="mobile-add-fab"
+            aria-label="Add a game"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="w-7 h-7">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+          <AddGameSheet open={showAddGame} onClose={() => setShowAddGame(false)} />
+        </>
       )}
     </div>
   );
