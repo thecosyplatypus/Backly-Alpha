@@ -205,6 +205,17 @@ export default function Sidebar({ mode, overlayOpen, onToggleOverlay, onCloseOve
       {/* Bottom section */}
       <div className={`mt-auto ${showLabels ? 'px-3' : 'px-2.5'} w-full space-y-2`}>
         {settings?.adsEnabled && showLabels && <AdBanner placement="sidebar" />}
+        {showLabels && (
+          <a
+            href="https://ko-fi.com/cozyplatypus"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-xl border border-pink-500/20 bg-pink-500/10 px-3 py-2 text-[10px] font-medium text-pink-300 transition-colors hover:bg-pink-500/20"
+          >
+            <span>☕</span>
+            <span>Support Cozy Platypus</span>
+          </a>
+        )}
         <div className="h-px bg-gradient-to-r from-transparent via-gold-500/20 to-transparent mb-2" />
         <button className={`group flex items-center w-full py-2.5 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/[0.04] transition-all duration-200 sidebar-transition ${
           showLabels ? 'px-3 gap-3' : 'flex-col px-2.5'

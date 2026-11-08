@@ -436,6 +436,25 @@ export default function Settings() {
           loading={resetting}
         />
 
+        {/* Support */}
+        <SettingsCard icon={<span className="text-base">☕</span>} title="Support">
+          <div className="rounded-2xl border border-pink-500/20 bg-gradient-to-br from-pink-500/10 to-rose-500/5 p-4 text-center">
+            <div className="mb-2 text-2xl">🐾</div>
+            <p className="text-sm font-semibold text-white">Support Cozy Platypus</p>
+            <p className="mt-1 text-[11px] text-gray-400">
+              If Backly helps you, a coffee keeps the app free, updated, and cozy.
+            </p>
+            <a
+              href="https://ko-fi.com/cozyplatypus"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-pink-500 px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-105"
+            >
+              ☕ Buy me a coffee
+            </a>
+          </div>
+        </SettingsCard>
+
         {/* About */}
         <SettingsCard icon={<InfoIcon />} title="About">
           <div className="flex items-center gap-3 md:gap-4">
