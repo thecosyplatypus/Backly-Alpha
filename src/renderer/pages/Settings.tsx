@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { useActivityStore } from '../store/activityStore';
 import SteamSyncCard from '../components/ui/SteamSyncCard';
 import { isMobileApp } from '../mobile/platform';
+import SteamImportCard from '../mobile/SteamImportCard';
 
 function SteamIcon() {
   return (
@@ -362,6 +363,12 @@ export default function Settings() {
             </div>
           </div>
         </SettingsCard>
+        )}
+
+        {mobile && (
+          <SettingsCard icon={<SteamIcon />} title="Steam Library">
+            <SteamImportCard />
+          </SettingsCard>
         )}
 
         {/* Data Management */}
