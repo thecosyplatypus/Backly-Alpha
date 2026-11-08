@@ -75,6 +75,10 @@ async function build() {
         /\.env\.example/,
         /BUILD_AND_RUN\.bat/,
         /RUN\.bat/,
+        /\/release(\/|$)/,
+        /\/android(\/|$)/,
+        /\/dist\/mobile(\/|$)/,
+        /\/\.gradle(\/|$)/,
       ],
     });
 
