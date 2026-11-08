@@ -436,7 +436,8 @@ export default function Settings() {
           loading={resetting}
         />
 
-        {/* Support */}
+        {/* Support (desktop only) */}
+        {!mobile && (
         <SettingsCard icon={<span className="text-base">☕</span>} title="Support">
           <div className="rounded-2xl border border-pink-500/20 bg-gradient-to-br from-pink-500/10 to-rose-500/5 p-4 text-center">
             <div className="mb-2 text-2xl">🐾</div>
@@ -454,6 +455,7 @@ export default function Settings() {
             </a>
           </div>
         </SettingsCard>
+        )}
 
         {/* About */}
         <SettingsCard icon={<InfoIcon />} title="About">
