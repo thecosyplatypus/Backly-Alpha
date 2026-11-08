@@ -5,6 +5,7 @@ import { GameStatus } from '../../shared/types';
 import SteamImage from '../components/ui/SteamImage';
 import PlayButton from '../components/ui/PlayButton';
 import { isMobileApp } from '../mobile/platform';
+import { refreshSteamMetadata, syncSteamAchievements } from '../mobile/steam';
 
 const statusStyles: Record<string, { active: string; inactive: string }> = {
   [GameStatus.BACKLOG]: { active: 'bg-gray-600/30 text-gray-400 border border-gray-500/30', inactive: '' },
@@ -63,6 +64,8 @@ export default function GameDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [achData, setAchData] = useState<any>(null);
   const [achLoading, setAchLoading] = useState(false);
+  const [syncingAchievements, setSyncingAchievements] = useState(false);
+  const [refreshingMetadata, setRefreshingMetadata] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
   const [tracking, setTracking] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -93,7 +96,7 @@ export default function GameDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!id || mobile) return;
+    if (!id) return;
     setAchLoading(true);
     window.backly.getGameAchievements(id).then((result) => {
       if (!mountedRef.current) return;
@@ -177,6 +180,41 @@ export default function GameDetailPage() {
     if (!game || !window.confirm(`Delete ${game.title}? This cannot be undone.`)) return;
     await deleteGame(game.id);
     navigate('/library');
+  };
+
+  const handleSyncAchievements = async () => {
+    if (!game) return;
+    setSyncingAchievements(true);
+    try {
+      const result = await syncSteamAchievements(game);
+      setGame((prev: any) => ({
+        ...prev,
+        achievementsData: JSON.stringify(result.achievements),
+        totalAchievements: result.total,
+        unlockedAchievements: result.unlocked,
+        completionPercentage: result.percentage,
+      }));
+      const fresh = await window.backly.getGameAchievements(game.id);
+      setAchData(fresh);
+    } catch (err: any) {
+      alert(err?.message || 'Achievement sync failed');
+    } finally {
+      setSyncingAchievements(false);
+    }
+  };
+
+  const handleRefreshMetadata = async () => {
+    if (!game) return;
+    setRefreshingMetadata(true);
+    try {
+      const metadata = await refreshSteamMetadata(game);
+      await window.backly.updateGame(game.id, metadata);
+      setGame((prev: any) => ({ ...prev, ...metadata }));
+    } catch (err: any) {
+      alert(err?.message || 'Metadata refresh failed');
+    } finally {
+      setRefreshingMetadata(false);
+    }
   };
 
   const achTotal = achData?.totalAchievements ?? 0;
@@ -375,8 +413,7 @@ export default function GameDetailPage() {
             </div>
           </div>
 
-          {/* Steam achievements are desktop-only. */}
-          {!mobile && (
+          {/* Achievements are available on desktop via Steam and on mobile after a Steam sync. */}
           <div className={`card ${isFullyComplete ? 'border-green-500/20' : ''}`}>
             <div className="flex items-center justify-between mb-3 md:mb-4">
               <h2 className={`text-[11px] md:text-sm font-semibold ${isFullyComplete ? 'text-green-400' : 'text-white'}`}>
@@ -390,6 +427,16 @@ export default function GameDetailPage() {
                   </span>
                 )}
               </h2>
+              {mobile && game.steamAppId && (
+                <button
+                  type="button"
+                  onClick={handleSyncAchievements}
+                  disabled={syncingAchievements}
+                  className="mb-2 rounded-lg bg-gold-500/20 px-3 py-1.5 text-[10px] font-medium text-gold-400 disabled:opacity-50"
+                >
+                  {syncingAchievements ? 'Syncing...' : 'Sync achievements'}
+                </button>
+              )}
               {hasAchievements && (
                 <div className="text-right">
                   <p className={`text-[18px] md:text-2xl font-bold ${isFullyComplete ? 'text-green-400' : 'text-white'}`}>
@@ -424,6 +471,16 @@ export default function GameDetailPage() {
                 </div>
                 <p className="text-xs text-gray-500">No achievements tracked for this game</p>
                 <p className="text-[10px] text-gray-600 mt-0.5">Sync your Steam account to see achievements here</p>
+                {mobile && game.steamAppId && (
+                  <button
+                    type="button"
+                    onClick={handleSyncAchievements}
+                    disabled={syncingAchievements}
+                    className="btn-primary mt-3 text-[10px] px-3 py-1.5 disabled:opacity-50"
+                  >
+                    {syncingAchievements ? 'Syncing...' : 'Sync Steam achievements'}
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -529,7 +586,6 @@ export default function GameDetailPage() {
               </>
             )}
           </div>
-          )}
 
           {/* Notes */}
           <div className="card">
@@ -590,6 +646,16 @@ export default function GameDetailPage() {
               {game.steamAppId && <DetailRow label="Steam ID" value={game.steamAppId} />}
               {hasAchievements && <DetailRow label="Achievements" value={`${achUnlocked}/${achTotal} (${achPct}%)`} />}
             </div>
+            {mobile && game.steamAppId && (
+              <button
+                type="button"
+                onClick={handleRefreshMetadata}
+                disabled={refreshingMetadata}
+                className="mt-3 w-full rounded-lg border border-white/[0.06] bg-surface-800 px-3 py-2 text-[10px] font-medium text-gray-300 disabled:opacity-50"
+              >
+                {refreshingMetadata ? 'Refreshing...' : 'Refresh Steam metadata'}
+              </button>
+            )}
           </div>
 
           {/* Rating */}

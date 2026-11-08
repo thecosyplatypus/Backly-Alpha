@@ -782,11 +782,19 @@ const api = {
   getGameAchievements: async (gameId: string) => {
     const game = findGame(gameId);
     if (!game) return null;
+
+    let achievements: any[] = [];
+    try {
+      achievements = game.achievementsData ? JSON.parse(game.achievementsData) : [];
+    } catch {
+      achievements = [];
+    }
+
     return {
-      totalAchievements: game.totalAchievements || 0,
-      unlockedAchievements: game.unlockedAchievements || 0,
+      totalAchievements: game.totalAchievements || achievements.length || 0,
+      unlockedAchievements: game.unlockedAchievements || achievements.filter((a) => a.unlocked).length || 0,
       completionPercentage: game.completionPercentage || 0,
-      achievements: [],
+      achievements,
     };
   },
   getAllAchievements: async () => [],
