@@ -48,6 +48,7 @@ const DEFAULT_SETTINGS = {
   language: 'en',
   adsEnabled: false,
   adCode: null,
+  streamerMode: false,
   xp: 0,
 };
 

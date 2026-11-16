@@ -13,6 +13,7 @@ export let settingsCache: any = {
   language: 'en',
   adsEnabled: false,
   adCode: null,
+  streamerMode: false,
 };
 
 function getSettingsPath(): string {

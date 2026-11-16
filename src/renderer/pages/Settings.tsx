@@ -369,6 +369,14 @@ export default function Settings() {
                 onChange={(v) => updateSettings({ ...settings, adsEnabled: v })}
               />
             </div>
+            <div className="px-4 md:px-6">
+              <ToggleSetting
+                label="Streamer mode"
+                description="Hide your profile, username, avatar, and activity feed"
+                checked={settings.streamerMode}
+                onChange={(v) => updateSettings({ ...settings, streamerMode: v })}
+              />
+            </div>
             {settings.adsEnabled && (
               <div className="px-4 md:px-6 pb-4">
                 <label className="mb-1.5 block text-[11px] text-gray-500">Ad code (HTML or script)</label>

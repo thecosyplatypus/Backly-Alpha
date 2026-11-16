@@ -6,6 +6,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { useGamepadDetection } from '../../hooks/useController';
 import BottomNav from '../../mobile/BottomNav';
 import { isMobileApp } from '../../mobile/platform';
+import { useSettingsStore } from '../../store/settingsStore';
 
 interface Props {
   children: React.ReactNode;
@@ -16,6 +17,7 @@ export default function Layout({ children }: Props) {
   const [overlayOpen, setOverlayOpen] = useState(false);
   const hasGamepad = useGamepadDetection();
   const mobile = isMobileApp();
+  const streamerMode = useSettingsStore((s) => !!s.settings?.streamerMode);
 
   const handleToggleOverlay = useCallback(() => {
     setOverlayOpen((prev) => !prev);
@@ -61,7 +63,7 @@ export default function Layout({ children }: Props) {
         </div>
       </main>
 
-      {!mobile && resp.showPanelRight && (
+      {!mobile && resp.showPanelRight && !streamerMode && (
         <div className="resize-transition relative z-10">
           <ProfilePanel />
         </div>
